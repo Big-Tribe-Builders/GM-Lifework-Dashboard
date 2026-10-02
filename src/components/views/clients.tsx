@@ -9,6 +9,7 @@ import {
 import { Widget, Rows, Row, Empty, Badge, SourceNote } from '@/components/ui';
 import { Portal } from '@/components/views/shared';
 import { ClientTable } from '@/components/ClientTable';
+import { EmailTable, EMAILS_GRID } from '@/components/EmailTable';
 import { Peek } from '@/components/Peek';
 import { CLIENTS_GRID, columnsFor, type ViewOpts } from '@/lib/grid';
 
@@ -20,8 +21,22 @@ import { CLIENTS_GRID, columnsFor, type ViewOpts } from '@/lib/grid';
  * The name opens the detail page; the status cell moves the row.
  */
 export function clientsZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: ViewOpts = {}): ReactNode {
+  if (tab.slug === 'emails') return emailsView(domain, b, q, view);
   if (!b.crmConnected) return notConnected(domain, tab, b);
   return listView(domain, tab, b, q, view);
+}
+
+function emailsView(domain: Domain, b: Bundle, q: string, view: ViewOpts): ReactNode {
+  return (
+    <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
+      <EmailTable
+        rows={b.crmEmails}
+        q={q}
+        settings={columnsFor(view.columns ?? [], EMAILS_GRID)}
+        accent={domain.accent}
+      />
+    </Portal>
+  );
 }
 
 // ------------------------------------------------------------------- list

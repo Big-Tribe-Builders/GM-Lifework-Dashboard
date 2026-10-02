@@ -1823,3 +1823,8 @@ main.portal {
 .sidebar__toggle svg { width: 14px; height: 14px; }
 .sidebar--tight .sidebar__toggle { position: absolute; right: 6px; top: 16px; }
 .sidebar__brand { position: relative; }
+
+/* a yes/no cell: the box alone, centred, saves on click */
+.flagcell { display: flex; align-items: center; justify-content: center; gap: 6px; height: 100%; }
+.flagcell__box { width: 15px; height: 15px; margin: 0; accent-color: var(--accent, var(--brand-violet)); cursor: pointer; }
+.flagcell__box:disabled { cursor: progress; opacity: .5; }

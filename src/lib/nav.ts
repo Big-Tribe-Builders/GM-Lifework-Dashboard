@@ -98,7 +98,7 @@ export const DOMAINS: Domain[] = [
   // -------------------------------------------------------------------- Work
   {
     slug: 'clients',
-    label: 'Clients',
+    label: 'CRM',
     group: 'Work',
     icon: 'users',
     accent: 'orange',
@@ -107,6 +107,7 @@ export const DOMAINS: Domain[] = [
     // the clients across five tabs hid the ones she was looking for.
     tabs: [
       { slug: 'all', label: 'All clients', blurb: '' },
+      { slug: 'emails', label: 'Emails', blurb: 'Every address you have, and where it came from.' },
     ],
   },
   {

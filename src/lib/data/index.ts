@@ -15,7 +15,7 @@ import type {
   Client, Task, AppLink, BrainSource, VoiceRule,
   ContentItem, Course, GoalPeriod, Signal,
 } from '@/lib/types';
-import type { Company, Contact, ClientApp } from '@/lib/crm';
+import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { DomainOverride, CollectionOrder } from '@/lib/nav';
 import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { ColumnSetting } from '@/lib/grid';
@@ -49,6 +49,8 @@ export const getCompanies = () =>
   readTable<Company>('client_companies_api', localRows<Company>('companies') ?? []);
 export const getContacts = () =>
   readTable<Contact>('client_contacts_api', localRows<Contact>('contacts') ?? []);
+export const getCrmEmails = () =>
+  readTable<CrmEmail>('crm_emails_api', localRows<CrmEmail>('crmEmails') ?? []);
 export const getClientApps = () =>
   readTable<ClientApp>('client_apps_api', localRows<ClientApp>('clientApps') ?? []);
 

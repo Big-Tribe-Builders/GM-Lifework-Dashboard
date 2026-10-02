@@ -168,3 +168,21 @@ export function goLinks(c: Company): { label: string; url: string }[] {
   if (c.upworkUrl) out.push({ label: 'Upwork', url: c.upworkUrl });
   return out;
 }
+
+// ------------------------------------------------------------- the email list
+
+/** One address in the CRM's email list. The email is the key. */
+export type CrmEmail = {
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  city: string | null;
+  state: string | null;
+  /** Where it came from: a community, Kit, the website, … her words. */
+  source: string | null;
+  isClient: boolean;
+  inCommunity: boolean;
+  notes: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};

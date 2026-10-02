@@ -7,6 +7,7 @@ import { DOMAIN_BY_SLUG, findTab, withOverride, type DomainOverride } from '@/li
 import { DomainSettings } from '@/components/DomainSettings';
 import { Tabs } from '@/components/Tabs';
 import { ClientsBar } from '@/components/ClientsBar';
+import { EmailsBar } from '@/components/EmailsBar';
 import { ZoneSearch } from '@/components/ZoneSearch';
 
 type Pin = { id: string; name: string; url: string };
@@ -76,7 +77,8 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
               <ZoneSearch placeholder={`Search ${tab.label.toLowerCase()}`} />
             </Suspense>
           ) : null}
-          {isClients ? <Suspense fallback={null}><ClientsBar part="add" /></Suspense> : null}
+          {isClients && tab.slug === 'all' ? <Suspense fallback={null}><ClientsBar part="add" /></Suspense> : null}
+          {isClients && tab.slug === 'emails' ? <EmailsBar /> : null}
         </div>
       </header>
     );

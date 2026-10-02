@@ -199,3 +199,81 @@ export async function createClient(input: NewClient): Promise<Result & { id?: st
   touched();
   return { error: null, id };
 }
+
+// --------------------------------------------------------------- the email list
+
+/** The text fields the Emails table edits in place, and their columns. */
+const EMAIL_FIELDS = {
+  firstName: 'first_name',
+  lastName: 'last_name',
+  city: 'city',
+  state: 'state',
+  source: 'source',
+  notes: 'notes',
+} as const;
+export type EmailField = keyof typeof EMAIL_FIELDS;
+
+const EMAIL_FLAGS = { isClient: 'is_client', inCommunity: 'in_community' } as const;
+export type EmailFlag = keyof typeof EMAIL_FLAGS;
+
+function cleanEmail(v: string): string | null {
+  const e = v.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) ? e : null;
+}
+
+export async function updateEmailField(email: string, field: EmailField, value: string): Promise<Result> {
+  const column = EMAIL_FIELDS[field];
+  if (!column) return { error: `Unknown field: ${field}` };
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const { error } = await db.from('crm_emails')
+    .update({ [column]: trim(value), updated_at: new Date().toISOString() })
+    .eq('email', email);
+  if (error) return { error: error.message };
+  touched();
+  return { error: null };
+}
+
+export async function setEmailFlag(email: string, flag: EmailFlag, on: boolean): Promise<Result> {
+  const column = EMAIL_FLAGS[flag];
+  if (!column) return { error: `Unknown flag: ${flag}` };
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const { error } = await db.from('crm_emails')
+    .update({ [column]: on, updated_at: new Date().toISOString() })
+    .eq('email', email);
+  if (error) return { error: error.message };
+  touched();
+  return { error: null };
+}
+
+export type NewEmail = {
+  email: string; firstName: string; lastName: string; city: string; state: string; source: string;
+};
+
+export async function createEmail(input: NewEmail): Promise<Result> {
+  const email = cleanEmail(input.email);
+  if (!email) return { error: 'That is not an email address.' };
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const { error } = await db.from('crm_emails').insert({
+    email,
+    first_name: trim(input.firstName),
+    last_name: trim(input.lastName),
+    city: trim(input.city),
+    state: trim(input.state),
+    source: trim(input.source),
+  });
+  if (error) return { error: error.code === '23505' ? 'That address is already in the list.' : error.message };
+  touched();
+  return { error: null };
+}
+
+export async function deleteEmail(email: string): Promise<Result> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const { error } = await db.from('crm_emails').delete().eq('email', email);
+  if (error) return { error: error.message };
+  touched();
+  return { error: null };
+}

@@ -1,7 +1,7 @@
 import {
   getTasks, getApps, getBrainSources, getVoiceRules,
   getContent, getCourses, getGoals, getSignals,
-  getCompanies, getContacts, getClientApps,
+  getCompanies, getContacts, getClientApps, getCrmEmails,
   getUpworkLeads, getUpworkInvoices, getCodeProjects,
 } from '@/lib/data';
 import { missingSupabaseEnv } from '@/lib/supabase';
@@ -10,7 +10,7 @@ import type {
   Task, AppLink, BrainSource, VoiceRule,
   ContentItem, Course, GoalPeriod, Signal,
 } from '@/lib/types';
-import type { Company, Contact, ClientApp } from '@/lib/crm';
+import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { CodeProject } from '@/lib/projects';
 
@@ -40,6 +40,8 @@ export type Bundle = {
   companies: Company[];
   contacts: Contact[];
   clientApps: ClientApp[];
+  /** The email list, from Supabase. */
+  crmEmails: CrmEmail[];
   /** False when Supabase is not configured, so the zone can say so. */
   crmConnected: boolean;
   /** Public env vars this build could not see. Empty when both are present. */
@@ -61,12 +63,12 @@ export async function loadAll(): Promise<Bundle> {
     tasks, apps, brainSources, voiceRules,
     content, courses, goals, signals,
     companies, contacts, clientApps, clientTasks,
-    upworkLeads, upworkInvoices, codeProjects,
+    upworkLeads, upworkInvoices, codeProjects, crmEmails,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
     getCompanies(), getContacts(), getClientApps(), readClientTasks(),
-    getUpworkLeads(), getUpworkInvoices(), getCodeProjects(),
+    getUpworkLeads(), getUpworkInvoices(), getCodeProjects(), getCrmEmails(),
   ]);
 
   // If any read fell back, say so once rather than ten times.
@@ -88,6 +90,7 @@ export async function loadAll(): Promise<Bundle> {
     companies: companies.rows,
     contacts: contacts.rows,
     clientApps: clientApps.rows,
+    crmEmails: crmEmails.rows,
     // Connected means there is real data behind the zone — from Supabase, or
     // from the local fixture while the database is still being set up.
     crmConnected: companies.source === 'supabase' || companies.rows.length > 0,
