@@ -23,6 +23,9 @@ export type Tab = {
   label: string;
   /** One line explaining what this zone is for. Shown under the page title. */
   blurb: string;
+  /** The longer explanation behind the (i) button: what this is, where it
+      came from, how to work with it. Paragraphs separated by blank lines. */
+  help?: string;
 };
 
 export type Domain = {
@@ -58,14 +61,14 @@ export const DOMAINS: Domain[] = [
     accent: 'violet',
     blurb: 'Elite advisory for communities at scale. Build big. Stay human.',
     tabs: [
-      { slug: 'pulse', label: 'Pulse', blurb: 'What moved, and what needs you.' },
-      { slug: 'roadmap', label: 'Roadmap', blurb: 'The quarter: what we do, who does it, how far along it is.' },
-      { slug: 'experiments', label: 'Experiments', blurb: 'Marketing tests: what we tried, what we learned.' },
-      { slug: 'playbook', label: 'Playbook', blurb: 'StoryBrand and Seth Godin, answered for BTB.' },
-      { slug: 'engagements', label: 'Engagements', blurb: 'Live advisory work, by client and by ROOTS phase.' },
-      { slug: 'roots', label: 'ROOTS', blurb: 'The five-pillar method, and where each client sits in it.' },
-      { slug: 'pipeline', label: 'Pipeline', blurb: 'Calls booked, proposals out, and who to chase.' },
-      { slug: 'assets', label: 'Assets', blurb: 'Decks, blueprints, playbooks and the reusable library.' },
+      { slug: 'pulse', label: 'Pulse', blurb: 'What moved, and what needs you.', help: 'What it is: a feed of things that moved and need you — a signal, not a to-do. Think "a client went quiet", "a webinar filled up", "a payment failed".\n\nWhere it comes from: my first sketch of the venture. Nothing feeds it yet, so it is empty.\n\nHow we would use it: once sources are connected (Mighty Networks, Kit, the CRM), signals land here automatically and you clear them. Until then it can stay empty or be removed — your call.' },
+      { slug: 'roadmap', label: 'Roadmap', blurb: 'The quarter: what we do, who does it, how far along it is.', help: 'What it is: the quarter\'s plan. One line per thing we do, in a lane (QuinB → BTB, Webinars, Marketing, Sales, Clients), with who does it, status, % done and start/end dates. The bars above are the same lines drawn across the 13 weeks of the quarter; the filled part is % done, the red line is today.\n\nWhere it comes from: your words on 5 October about Q4 — QuinB becomes Big Tribe Builders, two or three products, the webinars you and Marty give, social storytelling, emails, first products sold, bigger or smaller new clients. I spread them over October–December as a proposal; the dates are yours to move.\n\nThe method behind it: a quarterly roadmap as planning tools do it (Asana timeline, Monday). Each line answers four questions: what, who, when, how far. Lanes keep the same kind of work together and give each its own colour. Status is To do → Doing → Done; Parked is for things we decided not to do now.\n\nHow we work with it: Monday, open it together, move % done, change dates, add lines with the row above the grid. Everything is typed straight into the cell.' },
+      { slug: 'experiments', label: 'Experiments', blurb: 'Marketing tests: what we tried, what we learned.', help: 'What it is: the marketing tests. Each line is one thing we try — "We believe that…" (the hypothesis), the channel, who runs it, when, what happened, what we learned.\n\nWhere it comes from: you asked for marketing tests and research in the launch plan. Writing the hypothesis down first is what makes it a test rather than an activity: afterwards we know whether we were right.\n\nHow we work with it: add a test when we start one. Close it with a result and one line of learning. The learnings are what the roadmap\'s next quarter is built from.' },
+      { slug: 'playbook', label: 'Playbook', blurb: 'StoryBrand and Seth Godin, answered for BTB.', help: 'What it is: the frameworks you named — Donald Miller\'s StoryBrand and Seth Godin\'s Purple Cow and This Is Marketing — turned into questions, each with a BTB answer. Plus "Our story", the move from QuinB to Big Tribe Builders in your own words.\n\nWhere the answers come from: the BTB team memory (positioning, ideal client, tagline, stakes, ROOTS) and your message of 5 October. Nothing is invented; what the memory did not hold is left for you.\n\nHow we work with it: it is the source every webinar, email and post is written from. When the story changes, change it here first.' },
+      { slug: 'engagements', label: 'Engagements', blurb: 'Live advisory work, by client and by ROOTS phase.', help: 'What it is: meant to be the live advisory work with clients — which client, which ROOTS phase they are in, what is open.\n\nWhere it comes from: my first sketch. Right now it only shows open Big Tribe Builders tasks, which is not the same thing.\n\nHow we would use it: once the first 1:1 clients and bootcamp seats are sold, each becomes a line here. Until then it can stay or go.' },
+      { slug: 'roots', label: 'ROOTS', blurb: 'The five-pillar method, and where each client sits in it.', help: 'What it is: your five-pillar method — Root the Architecture, Orchestrate the Experience, Optimize the Offer, Tribe-Build the Audience, Systemize the Intelligence — one line each with what the pillar covers.\n\nWhere it comes from: your own ROOTS method, as recorded in the BTB team memory and the BTB website work.\n\nHow we would use it: as the reference the Roadmap and the Playbook point to, and later as the column where each client\'s engagement sits (which pillar they are in).' },
+      { slug: 'pipeline', label: 'Pipeline', blurb: 'Calls booked, proposals out, and who to chase.', help: 'What it is: meant to be the sales pipeline — calls booked, proposals out, who to chase.\n\nWhere it comes from: my first sketch. Right now it shows open tasks, not a pipeline.\n\nHow we would use it: the webinars will produce leads; each becomes a line here with a stage. If you prefer to keep that in the CRM, this tab can go.' },
+      { slug: 'assets', label: 'Assets', blurb: 'Decks, blueprints, playbooks and the reusable library.', help: 'What it is: meant to be the reusable library — decks, blueprints, playbooks, templates.\n\nWhere it comes from: my first sketch. Nothing feeds it yet.\n\nHow we would use it: a line per asset with a link. Or remove it.' },
     ],
   },
   {

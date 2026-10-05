@@ -90,8 +90,20 @@ function AddRow({ table, fields, label }: { table: BtbTable; fields: { key: stri
 
 const PLAN_TONE: Record<PlanItem['status'], string> = { todo: 'sleeping', doing: 'active', done: 'done', parked: 'archived' };
 
+/** Ten lane colours, assigned in the order lanes first appear. */
+export function laneIndex(rows: { track: string | null }[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  let n = 0;
+  for (const r of rows) {
+    const k = r.track ?? '';
+    if (!(k in out)) out[k] = n++ % 10;
+  }
+  return out;
+}
+
 function Timeline({ quarter, rows }: { quarter: string; rows: PlanItem[] }) {
   const weeks = quarterWeeks(quarter);
+  const lanes = laneIndex(rows);
   // Today's marker is placed in the browser only: the server's clock and the
   // browser's differ by a few seconds, and a position computed twice would
   // not match on hydration.
@@ -100,6 +112,11 @@ function Timeline({ quarter, rows }: { quarter: string; rows: PlanItem[] }) {
   if (!weeks.length) return null;
   return (
     <div className="tl">
+      <div className="tl__legend">
+        {Object.entries(lanes).map(([k, i]) => (
+          <span key={k} className={`lane lane--${i}`}><span className="lane__dot" />{k || 'No lane'}</span>
+        ))}
+      </div>
       <div className="tl__head">
         <div className="tl__label">{quarter}</div>
         <div className="tl__weeks">
@@ -111,14 +128,14 @@ function Timeline({ quarter, rows }: { quarter: string; rows: PlanItem[] }) {
         const a = quarterPos(quarter, r.startDate), b = quarterPos(quarter, r.endDate);
         const left = a ?? 0, right = b ?? (a != null ? Math.min(1, a + 1 / 13) : 1);
         return (
-          <div key={r.id} className="tl__row">
+          <div key={r.id} className={`tl__row lane--${lanes[r.track ?? '']}`}>
             <div className="tl__label" title={r.title}>
-              <span className={`tl__dot tl__dot--${r.status}`} /><span className="tl__title">{r.title}</span>
+              <span className="lane__dot" /><span className="tl__title">{r.title}</span>
               {r.owner ? <span className="tl__owner">{r.owner}</span> : null}
             </div>
             <div className="tl__weeks">
               {a == null && b == null ? <span className="tl__nodate">no dates yet</span> : (
-                <div className={`tl__bar tl__bar--${r.status}`} style={{ left: `${left * 100}%`, width: `${Math.max(2, (right - left) * 100)}%` }}>
+                <div className={`tl__bar tl__bar--${r.status}`} data-lane={lanes[r.track ?? '']} style={{ left: `${left * 100}%`, width: `${Math.max(2, (right - left) * 100)}%` }}>
                   <span className="tl__fill" style={{ width: `${r.progress}%` }} />
                 </div>
               )}
@@ -133,9 +150,16 @@ function Timeline({ quarter, rows }: { quarter: string; rows: PlanItem[] }) {
 export function Roadmap({ rows, settings = {}, accent, store }: { rows: PlanItem[]; settings?: Record<string, ColumnSetting>; accent?: string; store: string }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const t = cell('btb_plan');
+  const lanes = laneIndex(rows);
   const columns: Column<PlanItem>[] = [
     { key: 'title', label: 'What', type: 'text', width: 300, render: t('title', 'What') as never },
-    { key: 'track', label: 'Lane', type: 'select', width: 170, render: t('track', 'Lane') as never },
+    { key: 'track', label: 'Lane', type: 'select', width: 170,
+      render: (r) => (
+        <span className={`cell cell--lead lane--${lanes[r.track ?? '']}`}>
+          <span className="lane__dot" />
+          {(t('track', 'Lane') as (x: PlanItem) => React.ReactNode)(r)}
+        </span>
+      ) },
     { key: 'owner', label: 'Who', type: 'text', width: 110, render: t('owner', 'Who') as never },
     { key: 'status', label: 'Status', type: 'select', width: 120, render: (r) => <StatusCell table="btb_plan" id={r.id} value={r.status} labels={PLAN_STATUS} tones={PLAN_TONE} /> },
     { key: 'progress', label: '% done', type: 'number', width: 90, numeric: true, render: t('progress', '% done') as never },

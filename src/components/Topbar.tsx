@@ -8,6 +8,7 @@ import { DomainSettings } from '@/components/DomainSettings';
 import { Tabs } from '@/components/Tabs';
 import { ClientsBar } from '@/components/ClientsBar';
 import { EmailsBar } from '@/components/EmailsBar';
+import { TabHelp } from '@/components/TabHelp';
 import { ZoneSearch } from '@/components/ZoneSearch';
 
 type Pin = { id: string; name: string; url: string };
@@ -71,6 +72,7 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
           </span>
           <span className="chrome__view">{tab.label}</span>
           <Caret />
+          <TabHelp tab={tab} domainLabel={domain.label} />
           <div className="chrome__spacer" />
           {SEARCHABLE.has(domain.slug) ? (
             <Suspense fallback={null}>
