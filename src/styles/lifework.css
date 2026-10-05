@@ -1837,3 +1837,30 @@ main.portal {
 .flagcell { display: flex; align-items: center; justify-content: center; gap: 6px; height: 100%; }
 .flagcell__box { width: 15px; height: 15px; margin: 0; accent-color: var(--accent, var(--brand-violet)); cursor: pointer; }
 .flagcell__box:disabled { cursor: progress; opacity: .5; }
+
+/* --------------------------------------------------------------------------
+   The gate: sign in, choose a password. Covers the shell.
+   -------------------------------------------------------------------------- */
+.gate {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: var(--canvas);
+  padding: 24px;
+}
+.gate__card { width: min(400px, 100%); padding: 28px; }
+.gate__form { margin-top: 8px; }
+.gate__btn { width: 100%; margin-top: 18px; }
+
+/* the users table on Settings */
+.users { width: 100%; border-collapse: collapse; font-size: 13px; }
+.users th, .users td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--hairline); }
+.users th { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.users__invite { display: flex; gap: 8px; margin-top: 14px; }
+.users__invite input {
+  flex: 1; min-width: 0; padding: 8px 12px; border: 1px solid var(--hairline);
+  border-radius: var(--radius-control); font: inherit; font-size: 14px;
+}
+.sidebar__signout { width: 100%; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }

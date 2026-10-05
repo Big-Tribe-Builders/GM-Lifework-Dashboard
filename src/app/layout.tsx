@@ -7,6 +7,11 @@ import { Topbar } from '@/components/Topbar';
 import { CommandPalette, type PaletteEntry } from '@/components/CommandPalette';
 import { getApps, getTasks, getDomainSettings, getCollectionOrder, openTasks, pinnedApps } from '@/lib/data';
 import { DOMAINS, overrideMap } from '@/lib/nav';
+import { currentUser } from '@/lib/auth';
+
+// Every page reads the session cookie for the sidebar, so nothing is
+// prerendered at build: a page built once would show whoever built it.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Lifework — Giulia May',
@@ -14,8 +19,8 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [{ rows: apps }, { rows: tasks }, { rows: domainSettings }, { rows: collections }] =
-    await Promise.all([getApps(), getTasks(), getDomainSettings(), getCollectionOrder()]);
+  const [{ rows: apps }, { rows: tasks }, { rows: domainSettings }, { rows: collections }, me] =
+    await Promise.all([getApps(), getTasks(), getDomainSettings(), getCollectionOrder(), currentUser()]);
   const overrides = overrideMap(domainSettings);
 
   // Sidebar counts: open work per domain. A number the rail can stand behind.
@@ -46,7 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body>
         <div className="shell">
-          <Sidebar counts={counts} overrides={overrides} collections={collections} />
+          <Sidebar counts={counts} overrides={overrides} collections={collections} signedIn={Boolean(me)} />
           <div className="shell__main">
             <Topbar pins={pins} overrides={overrides} />
             {children}

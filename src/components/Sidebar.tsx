@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/Icon';
 import { NavMenu } from '@/components/NavMenu';
+import { signOut } from '@/app/auth/actions';
 import {
   GROUP_ORDER, domainHref, resolveNav,
   type DomainOverride, type CollectionOrder,
@@ -21,10 +22,12 @@ const TIGHT = 'lifework.rail.tight';
  * Collapsed, the rail is icons only. The choice is kept in this browser, so
  * the rail opens the way she left it.
  */
-export function Sidebar({ counts, overrides = {}, collections = [] }: {
+export function Sidebar({ counts, overrides = {}, collections = [], signedIn = false }: {
   counts: Record<string, number>;
   overrides?: Record<string, DomainOverride>;
   collections?: CollectionOrder[];
+  /** True when a session exists, so the sign-out row is drawn. */
+  signedIn?: boolean;
 }) {
   const pathname = usePathname();
   const [tight, setTight] = useState(false);
@@ -132,6 +135,13 @@ export function Sidebar({ counts, overrides = {}, collections = [] }: {
           <span className="icon-chip icon-chip--sm accent-green"><Icon name="settings" /></span>
           <span className="sidebar__label">Settings</span>
         </Link>
+      
+        {signedIn ? (
+          <button type="button" className="sidebar__item sidebar__signout" onClick={() => signOut()} title={tight ? 'Sign out' : undefined}>
+            <span className="icon-chip icon-chip--sm accent-red"><Icon name="logout" /></span>
+            <span className="sidebar__label">Sign out</span>
+          </button>
+        ) : null}
       </div>
     </aside>
   );

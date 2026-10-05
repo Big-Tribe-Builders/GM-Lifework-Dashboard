@@ -1,6 +1,8 @@
 import { getBrainSources, isSupabaseConfigured } from '@/lib/data';
 import { PageHead, Widget, Row, Rows, Badge } from '@/components/ui';
 import { accentAt, DOMAINS, DOMAIN_BY_SLUG } from '@/lib/nav';
+import { adminClient, currentUser, ADMIN_ENV, authEnabled } from '@/lib/auth';
+import { Users, type UserRow } from '@/components/Users';
 
 export const metadata = { title: 'Settings — Lifework' };
 
@@ -14,9 +16,35 @@ export const metadata = { title: 'Settings — Lifework' };
 export default async function Settings() {
   const { rows: sources } = await getBrainSources();
 
+  // Who can sign in. Listing needs the service role key; without it the
+  // section says so rather than showing an empty table as if nobody exists.
+  const admin = adminClient();
+  const me = await currentUser();
+  let users: UserRow[] = [];
+  if (admin) {
+    const { data } = await admin.auth.admin.listUsers({ perPage: 200 });
+    users = (data?.users ?? []).map((u) => ({
+      id: u.id,
+      email: u.email ?? null,
+      createdAt: u.created_at ?? null,
+      lastSignIn: u.last_sign_in_at ?? null,
+      invitedAt: u.invited_at ?? null,
+      confirmed: Boolean(u.email_confirmed_at),
+    }));
+  }
+
   return (
     <main className="content content--wide stack">
       <PageHead title="Settings" blurb="What is connected, and what it would take to connect the rest." />
+
+      <Widget title="Users" accent="violet">
+        <p className="muted" style={{ marginBottom: 12, lineHeight: 1.6 }}>
+          {authEnabled
+            ? 'Sign-in is on: every page needs an account.'
+            : 'Sign-in is off (LIFEWORK_AUTH is not "on" in Vercel), so the app is open. Accounts can still be made here first.'}
+        </p>
+        <Users rows={users} me={me?.email ?? null} missing={admin ? null : ADMIN_ENV} />
+      </Widget>
 
       <section className="grid">
         <div className="col-6">

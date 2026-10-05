@@ -16,7 +16,7 @@
 export type IconName =
   | 'home' | 'tribe' | 'academy' | 'star' | 'users' | 'briefcase'
   | 'rocket' | 'megaphone' | 'brain' | 'book' | 'heart' | 'coins'
-  | 'grid' | 'settings';
+  | 'grid' | 'settings' | 'logout';
 
 export type Tab = {
   slug: string;
