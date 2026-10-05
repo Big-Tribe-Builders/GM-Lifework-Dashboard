@@ -20,6 +20,7 @@ import type { DomainOverride, CollectionOrder } from '@/lib/nav';
 import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { ColumnSetting } from '@/lib/grid';
 import type { CodeProject } from '@/lib/projects';
+import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import { localRows } from '@/lib/data/local';
 
 import { APPS } from '@/lib/seed/apps';
@@ -92,6 +93,11 @@ export const getCodeProjects = async () => {
     rows: base.rows.map((p) => ({ ...p, status: by.get(p.sessionId) ?? p.status ?? 'building' })),
   };
 };
+
+// Big Tribe Builders' plan. Three tables, no seed.
+export const getBtbPlan = () => readTable<PlanItem>('btb_plan_api', localRows<PlanItem>('btbPlan') ?? []);
+export const getBtbExperiments = () => readTable<Experiment>('btb_experiments_api', localRows<Experiment>('btbExperiments') ?? []);
+export const getBtbPlaybook = () => readTable<PlaybookEntry>('btb_playbook_api', localRows<PlaybookEntry>('btbPlaybook') ?? []);
 
 export const getUpworkLeads = () => readTable<UpworkLead>('upwork_leads_api', []);
 export const getUpworkInvoices = () => readTable<UpworkInvoice>('upwork_invoices_api', []);

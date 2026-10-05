@@ -58,7 +58,10 @@ export const DOMAINS: Domain[] = [
     accent: 'violet',
     blurb: 'Elite advisory for communities at scale. Build big. Stay human.',
     tabs: [
-      { slug: 'pulse', label: 'Pulse', blurb: 'What moved this week across every engagement.' },
+      { slug: 'pulse', label: 'Pulse', blurb: 'What moved, and what needs you.' },
+      { slug: 'roadmap', label: 'Roadmap', blurb: 'The quarter: what we do, who does it, how far along it is.' },
+      { slug: 'experiments', label: 'Experiments', blurb: 'Marketing tests: what we tried, what we learned.' },
+      { slug: 'playbook', label: 'Playbook', blurb: 'StoryBrand and Seth Godin, answered for BTB.' },
       { slug: 'engagements', label: 'Engagements', blurb: 'Live advisory work, by client and by ROOTS phase.' },
       { slug: 'roots', label: 'ROOTS', blurb: 'The five-pillar method, and where each client sits in it.' },
       { slug: 'pipeline', label: 'Pipeline', blurb: 'Calls booked, proposals out, and who to chase.' },

@@ -1864,3 +1864,53 @@ main.portal {
   border-radius: var(--radius-control); font: inherit; font-size: 14px;
 }
 .sidebar__signout { width: 100%; border: 0; background: none; font: inherit; cursor: pointer; text-align: left; }
+
+/* --------------------------------------------------------------------------
+   BTB plan: the add row above a grid, and the timeline above the roadmap.
+   -------------------------------------------------------------------------- */
+.addrow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--grid-line);
+}
+.addrow input {
+  width: 130px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+.addrow input.addrow__wide { width: 260px; }
+.addrow .btn { padding: 5px 11px; font-size: 13px; }
+
+.tl { background: var(--surface); border-bottom: 1px solid var(--grid-line); font-size: 12px; }
+.tl__head, .tl__row { display: grid; grid-template-columns: 300px 1fr; align-items: stretch; border-bottom: 1px solid var(--grid-line); }
+.tl__head { background: var(--grid-head-bg); color: var(--grid-head-ink); font-weight: 500; }
+.tl__row { height: 28px; overflow: hidden; }
+.tl__row:hover { background: #f8f8f9; }
+.tl__label { display: flex; align-items: center; gap: 8px; padding: 0 12px; min-width: 0; overflow: hidden; white-space: nowrap; border-right: 1px solid var(--grid-line); }
+.tl__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl__owner { margin-left: auto; color: var(--muted); font-size: 11px; }
+.tl__weeks { position: relative; display: grid; grid-template-columns: repeat(13, 1fr); }
+.tl__week { padding: 6px 0; text-align: center; border-right: 1px solid var(--grid-line); font-size: 11px; }
+.tl__week:last-child { border-right: 0; }
+.tl__row .tl__weeks { background-image: linear-gradient(to right, var(--grid-line) 1px, transparent 1px); background-size: calc(100% / 13) 100%; }
+.tl__today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--brand-red); z-index: 2; }
+.tl__row .tl__today { display: none; }
+.tl__bar { position: absolute; top: 6px; height: 16px; border-radius: 4px; background: color-mix(in srgb, var(--accent, var(--brand-violet)) 22%, white); overflow: hidden; }
+.tl__fill { display: block; height: 100%; background: var(--accent, var(--brand-violet)); opacity: .85; }
+.tl__bar--done { background: color-mix(in srgb, var(--brand-green) 22%, white); }
+.tl__bar--done .tl__fill { background: var(--brand-green); }
+.tl__bar--parked { background: #e9eaec; }
+.tl__bar--parked .tl__fill { background: #b9bec6; }
+.tl__nodate { padding-left: 8px; line-height: 28px; color: var(--faint); font-style: italic; white-space: nowrap; }
+.tl__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #b9bec6; }
+.tl__dot--doing { background: var(--brand-green); }
+.tl__dot--done { background: var(--brand-green); opacity: .5; }
+.tl__dot--todo { background: var(--brand-violet); opacity: .6; }

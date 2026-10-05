@@ -3,6 +3,7 @@ import {
   getContent, getCourses, getGoals, getSignals,
   getCompanies, getContacts, getClientApps, getCrmEmails,
   getUpworkLeads, getUpworkInvoices, getCodeProjects,
+  getBtbPlan, getBtbExperiments, getBtbPlaybook,
 } from '@/lib/data';
 import { missingSupabaseEnv } from '@/lib/supabase';
 import { readClientTasks } from '@/lib/notion';
@@ -13,6 +14,7 @@ import type {
 import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { CodeProject } from '@/lib/projects';
+import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 
 /**
  * Every domain page reads the same bundle.
@@ -56,6 +58,11 @@ export type Bundle = {
 
   /** The code projects: one per Claude Code session. */
   codeProjects: CodeProject[];
+
+  /** Big Tribe Builders' plan. */
+  btbPlan: PlanItem[];
+  btbExperiments: Experiment[];
+  btbPlaybook: PlaybookEntry[];
 };
 
 export async function loadAll(): Promise<Bundle> {
@@ -63,12 +70,13 @@ export async function loadAll(): Promise<Bundle> {
     tasks, apps, brainSources, voiceRules,
     content, courses, goals, signals,
     companies, contacts, clientApps, clientTasks,
-    upworkLeads, upworkInvoices, codeProjects, crmEmails,
+    upworkLeads, upworkInvoices, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
     getCompanies(), getContacts(), getClientApps(), readClientTasks(),
     getUpworkLeads(), getUpworkInvoices(), getCodeProjects(), getCrmEmails(),
+    getBtbPlan(), getBtbExperiments(), getBtbPlaybook(),
   ]);
 
   // If any read fell back, say so once rather than ten times.
@@ -100,5 +108,8 @@ export async function loadAll(): Promise<Bundle> {
     upworkLeads: upworkLeads.rows,
     upworkInvoices: upworkInvoices.rows,
     codeProjects: codeProjects.rows,
+    btbPlan: btbPlan.rows,
+    btbExperiments: btbExperiments.rows,
+    btbPlaybook: btbPlaybook.rows,
   };
 }

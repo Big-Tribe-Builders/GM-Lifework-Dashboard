@@ -8,6 +8,8 @@ import type { ViewOpts } from '@/lib/grid';
 
 import { clientsZone } from '@/components/views/clients';
 import { upworkZone } from '@/components/views/upwork';
+import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
+import { columnsFor } from '@/lib/grid';
 
 /**
  * The view registry.
@@ -20,8 +22,26 @@ export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: Vi
   switch (domain.slug) {
     case 'clients': return clientsZone(domain, tab, b, q, view);
     case 'upwork': return upworkZone(domain, tab, b, q);
+    case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b);
     default: return gridZone(domain, tab, b);
   }
+}
+
+/** The three plan tabs; the rest of BTB stays on the generic grid. */
+function btbZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode | null {
+  const store = `lifework.btb.${tab.slug}.cols`;
+  const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store };
+  const body =
+    tab.slug === 'roadmap' ? <Roadmap rows={b.btbPlan} {...common} />
+    : tab.slug === 'experiments' ? <Experiments rows={b.btbExperiments} {...common} />
+    : tab.slug === 'playbook' ? <Playbook rows={b.btbPlaybook} {...common} />
+    : null;
+  if (!body) return null;
+  return (
+    <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
+      {body}
+    </Portal>
+  );
 }
 
 function gridZone(domain: Domain, tab: Tab, b: Bundle): ReactNode {
