@@ -6,7 +6,7 @@ export const metadata = { title: 'Choose a password — Lifework' };
 
 export default async function SetPassword() {
   const me = await currentUser();
-  if (!me) redirect('/login?note=link');
+  if (!me) redirect('/login?note=session');
   return (
     <main className="gate">
       <section className="card gate__card">
