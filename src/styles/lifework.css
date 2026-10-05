@@ -553,11 +553,20 @@ button.row {
 }
 .link:hover { text-decoration: underline; }
 
-/* Responsive: the sidebar folds away on narrow screens. */
+/* Responsive: on a narrow screen the rail stays, as the icon-only strip.
+   It never disappears; the expand button is always on it. */
 @media (max-width: 900px) {
-  .sidebar { display: none; }
+  .sidebar { width: 68px; }
+  .sidebar .sidebar__label,
+  .sidebar .sidebar__brandtext,
+  .sidebar .sidebar__count,
+  .sidebar .eyebrow,
+  .sidebar .navmenu { display: none; }
+  .sidebar .sidebar__item { justify-content: center; padding-left: 0; padding-right: 0; }
+  .sidebar .sidebar__brand { padding: 0; justify-content: center; }
+  .sidebar .sidebar__toggle { position: absolute; right: 6px; top: 16px; }
+  .sidebar .sidebar__group + .sidebar__group { margin-top: 10px; }
   .content { padding: 20px 16px; }
-  .tabs { padding: 0 16px; }
   .searchbtn { width: auto; flex: 1; min-width: 0; }
 }
 
