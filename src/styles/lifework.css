@@ -1939,3 +1939,18 @@ main.portal {
 .help { margin-top: 14px; }
 .help p { margin: 0 0 12px; line-height: 1.6; font-size: 14px; color: var(--ink-soft); }
 .help p strong { color: var(--ink); }
+
+/* Pulse: one line per signal */
+.pulse { background: var(--surface); font-size: 13px; }
+.pulse__head { display: flex; align-items: center; gap: 12px; height: var(--grid-row); padding: 0 12px; background: var(--grid-head-bg); border-bottom: 1px solid var(--grid-line); }
+.pulse__count { color: var(--muted); font-size: 12px; }
+.pulse__line { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 12px; border-bottom: 1px solid var(--grid-line); }
+.pulse__line:hover { background: #f8f8f9; }
+.pulse__line--pending { opacity: .5; }
+.pulse__tick { width: 20px; height: 20px; flex: none; border: 1.5px solid #c3c6cd; border-radius: 4px; background: #fff; color: transparent; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.pulse__tick:hover { color: var(--brand-green); border-color: var(--brand-green); }
+.pulse__tick svg { width: 12px; height: 12px; }
+.pulse__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pulse__detail { color: var(--muted); }
+.pulse__go { color: var(--muted); text-decoration: none; font-size: 12px; white-space: nowrap; }
+.pulse__go:hover { color: var(--ink); text-decoration: underline; }

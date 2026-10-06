@@ -27,6 +27,13 @@ export type UpworkLead = {
   awaitingReply: string | null;
   unread: number;
 
+  /** The last message in the room, and whether she wrote it. */
+  lastMessage?: string | null;
+  lastMessageAt?: string | null;
+  lastMessageFromSelf?: boolean | null;
+  /** Generated in the database: true when the last message was theirs. */
+  needsReply?: boolean | null;
+
   hadAppointment: boolean;
   notes: string | null;
 

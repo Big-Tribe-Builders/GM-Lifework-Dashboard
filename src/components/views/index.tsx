@@ -9,6 +9,8 @@ import type { ViewOpts } from '@/lib/grid';
 import { clientsZone } from '@/components/views/clients';
 import { upworkZone } from '@/components/views/upwork';
 import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
+import { Pulse } from '@/components/Pulse';
+import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
 
 /**
@@ -32,7 +34,13 @@ function btbZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode
   const store = `lifework.btb.${tab.slug}.cols`;
   const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store };
   const body =
-    tab.slug === 'roadmap' ? <Roadmap rows={b.btbPlan} {...common} />
+    tab.slug === 'pulse' ? (
+      <Pulse
+        signals={pulseFor(b.btbPlan, b.crmEmails, b.upworkLeads, new Set(b.pulseDismissed))}
+        today={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' })}
+      />
+    )
+    : tab.slug === 'roadmap' ? <Roadmap rows={b.btbPlan} {...common} />
     : tab.slug === 'experiments' ? <Experiments rows={b.btbExperiments} {...common} />
     : tab.slug === 'playbook' ? <Playbook rows={b.btbPlaybook} {...common} />
     : null;

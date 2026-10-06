@@ -17,6 +17,7 @@ export type PlanItem = {
   progress: number;       // 0–100
   notes: string | null;
   sortOrder: number;
+  updatedAt?: string | null;
 };
 
 export type Experiment = {

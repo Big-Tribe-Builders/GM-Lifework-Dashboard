@@ -88,3 +88,13 @@ export async function removeBtb(table: BtbTable, id: string): Promise<Result> {
   touched();
   return { error: null };
 }
+
+/** Tick a Pulse line: it stays hidden until its key changes. */
+export async function dismissSignal(key: string): Promise<Result> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const { error } = await db.from('pulse_dismissed').upsert({ key, dismissed_at: new Date().toISOString() });
+  if (error) return { error: error.message };
+  touched();
+  return { error: null };
+}

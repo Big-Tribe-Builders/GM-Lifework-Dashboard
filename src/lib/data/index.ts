@@ -99,6 +99,9 @@ export const getBtbPlan = () => readTable<PlanItem>('btb_plan_api', localRows<Pl
 export const getBtbExperiments = () => readTable<Experiment>('btb_experiments_api', localRows<Experiment>('btbExperiments') ?? []);
 export const getBtbPlaybook = () => readTable<PlaybookEntry>('btb_playbook_api', localRows<PlaybookEntry>('btbPlaybook') ?? []);
 
+// Pulse lines she has ticked off, by key. No seed.
+export const getPulseDismissed = () => readTable<{ key: string }>('pulse_dismissed_api', []);
+
 export const getUpworkLeads = () => readTable<UpworkLead>('upwork_leads_api', []);
 export const getUpworkInvoices = () => readTable<UpworkInvoice>('upwork_invoices_api', []);
 
