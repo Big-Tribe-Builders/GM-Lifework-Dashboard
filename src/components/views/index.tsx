@@ -34,15 +34,15 @@ function btbZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode
   const store = `lifework.btb.${tab.slug}.cols`;
   const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store };
   const body =
-    tab.slug === 'pulse' ? (
+    tab.slug === 'todo' ? (
       <Pulse
         signals={pulseFor(b.btbPlan, b.crmEmails, b.upworkLeads, new Set(b.pulseDismissed))}
         today={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' })}
       />
     )
     : tab.slug === 'roadmap' ? <Roadmap rows={b.btbPlan} {...common} />
-    : tab.slug === 'experiments' ? <Experiments rows={b.btbExperiments} {...common} />
-    : tab.slug === 'playbook' ? <Playbook rows={b.btbPlaybook} {...common} />
+    : tab.slug === 'tests' ? <Experiments rows={b.btbExperiments} {...common} />
+    : tab.slug === 'story' ? <Playbook rows={b.btbPlaybook} {...common} />
     : null;
   if (!body) return null;
   return (

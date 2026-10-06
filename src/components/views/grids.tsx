@@ -328,10 +328,6 @@ export function ZoneGrid({ domain, tab, blurb, b }: {
         'Money is not read from anywhere yet. Your Upwork earnings live under Upwork.', store);
 
     // ------------------------------------------------------------ ventures
-    case 'big-tribe-builders/roots':
-      return <Grid rows={[...ROOTS]} columns={ROOTS_COLS} rowKey={(r) => r.key} store={store}
-        empty="No method recorded." />;
-    case 'big-tribe-builders/pulse':
     case 'quinb-academy/pulse':
       return <Grid rows={b.signals.filter((s) => s.domain === domain)}
         columns={SIGNAL_COLS} rowKey={(s) => s.id} store={store}

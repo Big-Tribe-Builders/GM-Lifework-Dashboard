@@ -14,7 +14,7 @@ export function Pulse({ signals, today }: { signals: Signal[]; today: string }) 
     <div className="pulse">
       <div className="pulse__head">
         <span className="grid2__foldname">{today}</span>
-        <span className="pulse__count">{signals.length === 0 ? 'Nothing needs you.' : `${signals.length} to look at`}</span>
+        <span className="pulse__count">{signals.length === 0 ? 'Nothing to do from the plan today.' : `${signals.length} to do`}</span>
       </div>
       {signals.map((s) => <Line key={s.key} s={s} />)}
     </div>

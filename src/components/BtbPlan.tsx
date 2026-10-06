@@ -114,7 +114,7 @@ function Timeline({ quarter, rows }: { quarter: string; rows: PlanItem[] }) {
     <div className="tl">
       <div className="tl__legend">
         {Object.entries(lanes).map(([k, i]) => (
-          <span key={k} className={`lane lane--${i}`}><span className="lane__dot" />{k || 'No lane'}</span>
+          <span key={k} className={`lane lane--${i}`}><span className="lane__dot" />{k || 'No type'}</span>
         ))}
       </div>
       <div className="tl__head">
@@ -153,11 +153,11 @@ export function Roadmap({ rows, settings = {}, accent, store }: { rows: PlanItem
   const lanes = laneIndex(rows);
   const columns: Column<PlanItem>[] = [
     { key: 'title', label: 'What', type: 'text', width: 300, render: t('title', 'What') as never },
-    { key: 'track', label: 'Lane', type: 'select', width: 170,
+    { key: 'track', label: 'Type', type: 'select', width: 170,
       render: (r) => (
         <span className={`cell cell--lead lane--${lanes[r.track ?? '']}`}>
           <span className="lane__dot" />
-          {(t('track', 'Lane') as (x: PlanItem) => React.ReactNode)(r)}
+          {(t('track', 'Type') as (x: PlanItem) => React.ReactNode)(r)}
         </span>
       ) },
     { key: 'owner', label: 'Who', type: 'text', width: 110, render: t('owner', 'Who') as never },
@@ -180,7 +180,7 @@ export function Roadmap({ rows, settings = {}, accent, store }: { rows: PlanItem
       {current ? <Timeline quarter={current} rows={sorted(current)} /> : null}
       <AddRow table="btb_plan" label="+ Add" fields={[
         { key: 'quarter', placeholder: current ?? '2026-Q4' },
-        { key: 'track', placeholder: 'Lane' },
+        { key: 'track', placeholder: 'Type' },
         { key: 'title', placeholder: 'What', wide: true },
         { key: 'owner', placeholder: 'Who' },
       ]} />
@@ -199,7 +199,7 @@ export function Experiments({ rows, settings = {}, accent, store }: { rows: Expe
   const t = cell('btb_experiments');
   const columns: Column<Experiment>[] = [
     { key: 'title', label: 'Test', type: 'text', width: 260, render: t('title', 'Test') as never },
-    { key: 'hypothesis', label: 'We believe that…', type: 'text', width: 300, render: t('hypothesis', 'Hypothesis') as never },
+    { key: 'hypothesis', label: 'What we expect', type: 'text', width: 300, render: t('hypothesis', 'What we expect') as never },
     { key: 'channel', label: 'Channel', type: 'select', width: 130, render: t('channel', 'Channel') as never },
     { key: 'owner', label: 'Who', type: 'text', width: 100, render: t('owner', 'Who') as never },
     { key: 'status', label: 'Status', type: 'select', width: 120, render: (r) => <StatusCell table="btb_experiments" id={r.id} value={r.status} labels={EXP_STATUS} tones={EXP_TONE} /> },
@@ -214,7 +214,7 @@ export function Experiments({ rows, settings = {}, accent, store }: { rows: Expe
     <>
       <AddRow table="btb_experiments" label="+ Add" fields={[
         { key: 'title', placeholder: 'Test', wide: true },
-        { key: 'hypothesis', placeholder: 'We believe that…', wide: true },
+        { key: 'hypothesis', placeholder: 'What we expect', wide: true },
         { key: 'channel', placeholder: 'Channel' },
         { key: 'owner', placeholder: 'Who' },
       ]} />
