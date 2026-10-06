@@ -10,6 +10,7 @@ import { clientsZone } from '@/components/views/clients';
 import { upworkZone } from '@/components/views/upwork';
 import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
 import { Pulse } from '@/components/Pulse';
+import { Dashboard, RoadmapBoard, Years, Quarters, Actions } from '@/components/GoalNav';
 import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
 
@@ -25,8 +26,27 @@ export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: Vi
     case 'clients': return clientsZone(domain, tab, b, q, view);
     case 'upwork': return upworkZone(domain, tab, b, q);
     case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b);
+    case 'goal-navigator': return goalZone(domain, tab, b, view);
     default: return gridZone(domain, tab, b);
   }
+}
+
+/** The Goal Navigator: her Notion structure, five tabs over three tables. */
+function goalZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
+  const store = `lifework.goals.${tab.slug}.cols`;
+  const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store };
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' });
+  const body =
+    tab.slug === 'roadmap' ? <RoadmapBoard goals={b.goalQuarters} actions={b.goalActions} />
+    : tab.slug === 'years' ? <Years rows={b.goalYears} {...common} />
+    : tab.slug === 'quarters' ? <Quarters rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} {...common} />
+    : tab.slug === 'actions' ? <Actions rows={b.goalActions} goals={b.goalQuarters} {...common} />
+    : <Dashboard goals={b.goalQuarters} actions={b.goalActions} today={today} {...common} />;
+  return (
+    <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
+      {body}
+    </Portal>
+  );
 }
 
 /** The three plan tabs; the rest of BTB stays on the generic grid. */

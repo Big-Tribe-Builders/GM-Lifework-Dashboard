@@ -4,6 +4,7 @@ import {
   getCompanies, getContacts, getClientApps, getCrmEmails,
   getUpworkLeads, getUpworkInvoices, getCodeProjects,
   getBtbPlan, getBtbExperiments, getBtbPlaybook, getPulseDismissed,
+  getYearGoals, getQuarterGoals, getActionPoints,
 } from '@/lib/data';
 import { missingSupabaseEnv } from '@/lib/supabase';
 import { readClientTasks } from '@/lib/notion';
@@ -15,6 +16,7 @@ import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
+import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 
 /**
  * Every domain page reads the same bundle.
@@ -65,6 +67,11 @@ export type Bundle = {
   btbPlaybook: PlaybookEntry[];
   /** Pulse lines she ticked off, by key. */
   pulseDismissed: string[];
+
+  /** The Goal Navigator. */
+  goalYears: YearGoal[];
+  goalQuarters: QuarterGoal[];
+  goalActions: ActionPoint[];
 };
 
 export async function loadAll(): Promise<Bundle> {
@@ -73,12 +80,14 @@ export async function loadAll(): Promise<Bundle> {
     content, courses, goals, signals,
     companies, contacts, clientApps, clientTasks,
     upworkLeads, upworkInvoices, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
+    goalYears, goalQuarters, goalActions,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
     getCompanies(), getContacts(), getClientApps(), readClientTasks(),
     getUpworkLeads(), getUpworkInvoices(), getCodeProjects(), getCrmEmails(),
     getBtbPlan(), getBtbExperiments(), getBtbPlaybook(), getPulseDismissed(),
+    getYearGoals(), getQuarterGoals(), getActionPoints(),
   ]);
 
   // If any read fell back, say so once rather than ten times.
@@ -114,5 +123,8 @@ export async function loadAll(): Promise<Bundle> {
     btbExperiments: btbExperiments.rows,
     btbPlaybook: btbPlaybook.rows,
     pulseDismissed: pulseDismissed.rows.map((r) => r.key),
+    goalYears: goalYears.rows,
+    goalQuarters: goalQuarters.rows,
+    goalActions: goalActions.rows,
   };
 }

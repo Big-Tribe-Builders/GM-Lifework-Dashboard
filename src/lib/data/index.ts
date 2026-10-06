@@ -21,6 +21,7 @@ import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { ColumnSetting } from '@/lib/grid';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
+import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import { localRows } from '@/lib/data/local';
 
 import { APPS } from '@/lib/seed/apps';
@@ -98,6 +99,11 @@ export const getCodeProjects = async () => {
 export const getBtbPlan = () => readTable<PlanItem>('btb_plan_api', localRows<PlanItem>('btbPlan') ?? []);
 export const getBtbExperiments = () => readTable<Experiment>('btb_experiments_api', localRows<Experiment>('btbExperiments') ?? []);
 export const getBtbPlaybook = () => readTable<PlaybookEntry>('btb_playbook_api', localRows<PlaybookEntry>('btbPlaybook') ?? []);
+
+// The Goal Navigator: three tables, no seed.
+export const getYearGoals = () => readTable<YearGoal>('goal_years_api', localRows<YearGoal>('goalYears') ?? []);
+export const getQuarterGoals = () => readTable<QuarterGoal>('goal_quarters_api', localRows<QuarterGoal>('goalQuarters') ?? []);
+export const getActionPoints = () => readTable<ActionPoint>('goal_actions_api', localRows<ActionPoint>('goalActions') ?? []);
 
 // Pulse lines she has ticked off, by key. No seed.
 export const getPulseDismissed = () => readTable<{ key: string }>('pulse_dismissed_api', []);

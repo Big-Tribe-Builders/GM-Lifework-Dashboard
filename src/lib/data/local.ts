@@ -20,6 +20,9 @@ export type LocalFixture = {
   btbPlan?: unknown[];
   btbExperiments?: unknown[];
   btbPlaybook?: unknown[];
+  goalYears?: unknown[];
+  goalQuarters?: unknown[];
+  goalActions?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;

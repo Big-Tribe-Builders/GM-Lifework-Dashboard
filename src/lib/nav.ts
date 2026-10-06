@@ -16,7 +16,7 @@
 export type IconName =
   | 'home' | 'tribe' | 'academy' | 'star' | 'users' | 'briefcase'
   | 'rocket' | 'megaphone' | 'brain' | 'book' | 'heart' | 'coins'
-  | 'grid' | 'settings' | 'logout';
+  | 'grid' | 'settings' | 'logout' | 'compass';
 
 export type Tab = {
   slug: string;
@@ -42,9 +42,9 @@ export type Domain = {
 };
 
 export type Accent = 'violet' | 'red' | 'green' | 'orange';
-export type DomainGroup = 'Ventures' | 'Work' | 'Intelligence' | 'Life';
+export type DomainGroup = 'Ventures' | 'Projects' | 'Work' | 'Intelligence' | 'Life';
 
-export const GROUP_ORDER: DomainGroup[] = ['Ventures', 'Work', 'Intelligence', 'Life'];
+export const GROUP_ORDER: DomainGroup[] = ['Ventures', 'Projects', 'Work', 'Intelligence', 'Life'];
 
 /** Rotate the four so no two neighbours in a list ever match. */
 export function accentAt(index: number): Accent {
@@ -94,6 +94,28 @@ export const DOMAINS: Domain[] = [
       { slug: 'speaking', label: 'Speaking', blurb: 'Podcasts, stages and inbound invitations.' },
       { slug: 'site', label: 'Website', blurb: 'giuliamay.com — what is live and what is queued.' },
       { slug: 'list', label: 'Audience', blurb: 'Newsletter, subscribers and the free resources.' },
+    ],
+  },
+
+  // ---------------------------------------------------------------- Projects
+  {
+    slug: 'goal-navigator',
+    label: 'Goal Navigator',
+    group: 'Projects',
+    icon: 'compass',
+    accent: 'green',
+    blurb: 'Goals for the years ahead, cut into quarters, cut into action points.',
+    tabs: [
+      { slug: 'dashboard', label: 'Dashboard', blurb: 'This quarter at a glance: the goals, how far they are, what is due this week.',
+        help: 'What it is: one screen for the quarter we are in. Each quarterly goal with how far it is (the share of its action points that are done), then the action points due or planned in the next seven days, and anything overdue.\n\nHow we work with it: open it first. Everything on it is a line from the other tabs; change it there.' },
+      { slug: 'roadmap', label: 'Roadmap', blurb: 'The years and their quarters on one board.',
+        help: 'What it is: the board from your Notion Goal Navigator. One row per venture, one column per quarter, the quarterly goals as cards. Pick the year at the top.\n\nHow we work with it: this is the long view. A goal is added on the Quarterly goals tab and appears here in its quarter.' },
+      { slug: 'years', label: 'Yearly goals', blurb: 'What each year is for, per venture.',
+        help: 'What it is: the yearly goals, grouped by year. Each has a venture (Big Tribe Builders, QuinB Academy, Giulia May), a title, a status and notes.\n\nHow we work with it: a few lines per year, not many. Quarterly goals hang under these.' },
+      { slug: 'quarters', label: 'Quarterly goals', blurb: 'What each quarter must achieve, under its yearly goal.',
+        help: 'What it is: the quarterly goals, grouped by quarter. Each belongs to a venture and, if you want, to a yearly goal. Status: To do, Doing, Done, Parked.\n\nHow we work with it: at the start of a quarter, write the two to five things it must achieve. Action points hang under these.' },
+      { slug: 'actions', label: 'Action points', blurb: 'The concrete steps, with who, when and status.',
+        help: 'What it is: the actionable steps, grouped by quarter. Each belongs to a venture and a quarterly goal, has an owner, a status, a do date and a due date, a priority and notes.\n\nHow we work with it: this is the working list. Add steps with the row above the grid; type straight into the cells; tick Done. The Dashboard reads from here.' },
     ],
   },
 
@@ -301,7 +323,7 @@ export function resolveNav(
 
 const ICON_NAMES = new Set<string>([
   'home', 'tribe', 'academy', 'star', 'users', 'briefcase',
-  'rocket', 'megaphone', 'brain', 'book', 'heart', 'coins', 'grid', 'settings',
+  'rocket', 'megaphone', 'brain', 'book', 'heart', 'coins', 'grid', 'settings', 'compass',
 ]);
 const ACCENTS = new Set<string>(['violet', 'red', 'green', 'orange']);
 

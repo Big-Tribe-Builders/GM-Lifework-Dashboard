@@ -8,6 +8,7 @@ const PATHS: Record<IconName, React.ReactNode> = {
   home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9.5V21h13V9.5" /></>,
   tribe: <><circle cx="9" cy="8" r="3" /><circle cx="17" cy="10" r="2.4" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M15.5 20c0-2.2 1.4-4 3.5-4s2 1 2 4" /></>,
   academy: <><path d="M12 4 2.5 9 12 14l9.5-5L12 4Z" /><path d="M6 11.5V17c0 1.7 2.7 3 6 3s6-1.3 6-3v-5.5" /></>,
+  compass: <><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2.3 5.2-4.7 1.8 2.3-5.2z" /></>,
   star: <><path d="m12 3.5 2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.9l6-.8L12 3.5Z" /></>,
   users: <><circle cx="9" cy="8" r="3.2" /><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" /><path d="M16.5 5.2a3.2 3.2 0 0 1 0 5.9" /><path d="M18 13.8c2 .8 3.5 2.8 3.5 5.2" /></>,
   briefcase: <><rect x="2.5" y="7" width="19" height="13" rx="2.5" /><path d="M8.5 7V5.5A2 2 0 0 1 10.5 3.5h3a2 2 0 0 1 2 2V7" /><path d="M2.5 12.5h19" /></>,
