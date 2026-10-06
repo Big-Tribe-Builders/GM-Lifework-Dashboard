@@ -36,7 +36,7 @@ function btbZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode
   const body =
     tab.slug === 'todo' ? (
       <Pulse
-        signals={pulseFor(b.btbPlan, b.crmEmails, b.upworkLeads, new Set(b.pulseDismissed))}
+        signals={pulseFor(b.btbPlan, new Set(b.pulseDismissed))}
         today={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' })}
       />
     )

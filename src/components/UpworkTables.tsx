@@ -27,10 +27,15 @@ function openCell(url: string | null) {
 
 export function MessagesGrid({ leads, q = '' }: { leads: UpworkLead[]; q?: string }) {
   const needle = q.trim().toLowerCase();
-  const rows = byActivity(leads).filter((l) => !needle || l.name.toLowerCase().includes(needle));
+  // Rooms where they wrote last come first: that is the work.
+  const rows = byActivity(leads)
+    .filter((l) => !needle || l.name.toLowerCase().includes(needle))
+    .sort((a, b) => Number(Boolean(b.needsReply)) - Number(Boolean(a.needsReply)));
 
   const columns: Column<UpworkLead>[] = [
     { key: 'name', label: 'Name', type: 'text', width: 280, render: (l) => l.name },
+    { key: 'reply', label: 'Waiting for you', type: 'check', width: 150,
+      render: (l) => (l.needsReply ? <span className="status status--contact">Reply</span> : dash) },
     { key: 'type', label: 'Type', type: 'select', width: 110,
       render: (l) => (l.roomType ? (ROOM_LABEL[l.roomType] ?? l.roomType) : dash) },
     { key: 'last', label: 'Last message', type: 'date', width: 150,

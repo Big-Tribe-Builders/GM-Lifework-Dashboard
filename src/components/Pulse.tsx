@@ -23,11 +23,9 @@ export function Pulse({ signals, today }: { signals: Signal[]; today: string }) 
 
 const KIND: Record<Signal['kind'], { label: string; tone: string }> = {
   late: { label: 'Late', tone: 'contact' },
-  reply: { label: 'Reply', tone: 'contact' },
   soon: { label: 'Soon', tone: 'done' },
   unstarted: { label: 'Not started', tone: 'done' },
   stalled: { label: 'Stalled', tone: 'sleeping' },
-  new: { label: 'New', tone: 'active' },
 };
 
 function Line({ s }: { s: Signal }) {
