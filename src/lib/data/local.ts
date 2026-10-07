@@ -23,6 +23,14 @@ export type LocalFixture = {
   goalYears?: unknown[];
   goalQuarters?: unknown[];
   goalActions?: unknown[];
+  mailLists?: unknown[];
+  mailListMembers?: unknown[];
+  mailTemplates?: unknown[];
+  mailSenders?: unknown[];
+  mailCampaigns?: unknown[];
+  mailSteps?: unknown[];
+  mailSends?: unknown[];
+  mailSuppressions?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;

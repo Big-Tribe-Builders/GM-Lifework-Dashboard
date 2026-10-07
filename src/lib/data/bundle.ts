@@ -5,6 +5,7 @@ import {
   getUpworkLeads, getUpworkInvoices, getCodeProjects,
   getBtbPlan, getBtbExperiments, getBtbPlaybook, getPulseDismissed,
   getYearGoals, getQuarterGoals, getActionPoints,
+  getMailLists, getMailListMembers, getMailTemplates, getMailSenders, getMailCampaigns, getMailSteps, getMailSends, getMailSuppressions,
 } from '@/lib/data';
 import { missingSupabaseEnv } from '@/lib/supabase';
 import { readClientTasks } from '@/lib/notion';
@@ -17,6 +18,7 @@ import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
+import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
 
 /**
  * Every domain page reads the same bundle.
@@ -72,6 +74,16 @@ export type Bundle = {
   goalYears: YearGoal[];
   goalQuarters: QuarterGoal[];
   goalActions: ActionPoint[];
+
+  /** Mailing. */
+  mailLists: MailList[];
+  mailListMembers: MailListMember[];
+  mailTemplates: MailTemplate[];
+  mailSenders: MailSender[];
+  mailCampaigns: MailCampaign[];
+  mailSteps: MailStep[];
+  mailSends: MailSend[];
+  mailSuppressions: MailSuppression[];
 };
 
 export async function loadAll(): Promise<Bundle> {
@@ -81,6 +93,7 @@ export async function loadAll(): Promise<Bundle> {
     companies, contacts, clientApps, clientTasks,
     upworkLeads, upworkInvoices, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
+    mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
@@ -88,6 +101,7 @@ export async function loadAll(): Promise<Bundle> {
     getUpworkLeads(), getUpworkInvoices(), getCodeProjects(), getCrmEmails(),
     getBtbPlan(), getBtbExperiments(), getBtbPlaybook(), getPulseDismissed(),
     getYearGoals(), getQuarterGoals(), getActionPoints(),
+    getMailLists(), getMailListMembers(), getMailTemplates(), getMailSenders(), getMailCampaigns(), getMailSteps(), getMailSends(), getMailSuppressions(),
   ]);
 
   // If any read fell back, say so once rather than ten times.
@@ -126,5 +140,13 @@ export async function loadAll(): Promise<Bundle> {
     goalYears: goalYears.rows,
     goalQuarters: goalQuarters.rows,
     goalActions: goalActions.rows,
+    mailLists: mailLists.rows,
+    mailListMembers: mailListMembers.rows,
+    mailTemplates: mailTemplates.rows,
+    mailSenders: mailSenders.rows,
+    mailCampaigns: mailCampaigns.rows,
+    mailSteps: mailSteps.rows,
+    mailSends: mailSends.rows,
+    mailSuppressions: mailSuppressions.rows,
   };
 }

@@ -9,7 +9,9 @@ import { createServerClient } from '@supabase/ssr';
  * stay open, as does the icon. The session cookie is refreshed here on every
  * request, which is the one place that may set cookies.
  */
-const OPEN = ['/login', '/auth/'];
+// /api/mail/ is for Resend's webhook, the unsubscribe link in every email and
+// the daily tick: none of them has a signed-in user.
+const OPEN = ['/login', '/auth/', '/api/mail/'];
 
 export async function proxy(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

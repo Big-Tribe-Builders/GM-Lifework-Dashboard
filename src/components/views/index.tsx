@@ -11,6 +11,8 @@ import { upworkZone } from '@/components/views/upwork';
 import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
 import { Pulse } from '@/components/Pulse';
 import { Dashboard, RoadmapBoard, Years, Quarters, Actions } from '@/components/GoalNav';
+import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
+import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
 
@@ -27,8 +29,31 @@ export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: Vi
     case 'upwork': return upworkZone(domain, tab, b, q);
     case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b);
     case 'goal-navigator': return goalZone(domain, tab, b, view);
+    case 'mailing': return mailingZone(domain, tab, b, view);
     default: return gridZone(domain, tab, b);
   }
+}
+
+/** Mailing: lists over the CRM emails, templates, campaigns, sequences. */
+function mailingZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
+  const store = `lifework.mailing.${tab.slug}.cols`;
+  const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store, peek: view.peek, base: `/d/${domain.slug}/${tab.slug}` };
+  // Read on the server, so the panel can say exactly what is missing.
+  const data: MailData = {
+    lists: b.mailLists, members: b.mailListMembers, templates: b.mailTemplates, senders: b.mailSenders,
+    campaigns: b.mailCampaigns, steps: b.mailSteps, sends: b.mailSends, suppressions: b.mailSuppressions,
+    emails: b.crmEmails, resendMissing: process.env.RESEND_API_KEY ? null : RESEND_ENV,
+  };
+  const body =
+    tab.slug === 'templates' ? <Templates data={data} {...common} />
+    : tab.slug === 'campaigns' ? <Campaigns data={data} kind="broadcast" {...common} />
+    : tab.slug === 'sequences' ? <Campaigns data={data} kind="sequence" {...common} />
+    : <Lists data={data} {...common} />;
+  return (
+    <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
+      {body}
+    </Portal>
+  );
 }
 
 /** The Goal Navigator: her Notion structure, five tabs over three tables. */

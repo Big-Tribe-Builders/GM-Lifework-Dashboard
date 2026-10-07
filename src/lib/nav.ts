@@ -16,7 +16,7 @@
 export type IconName =
   | 'home' | 'tribe' | 'academy' | 'star' | 'users' | 'briefcase'
   | 'rocket' | 'megaphone' | 'brain' | 'book' | 'heart' | 'coins'
-  | 'grid' | 'settings' | 'logout' | 'compass';
+  | 'grid' | 'settings' | 'logout' | 'compass' | 'mail';
 
 export type Tab = {
   slug: string;
@@ -132,6 +132,24 @@ export const DOMAINS: Domain[] = [
     tabs: [
       { slug: 'all', label: 'All clients', blurb: '' },
       { slug: 'emails', label: 'Emails', blurb: 'Every address you have, and where it came from.' },
+    ],
+  },
+  {
+    slug: 'mailing',
+    label: 'Mailing',
+    group: 'Work',
+    icon: 'mail',
+    accent: 'green',
+    blurb: 'One sender system for QuinB Academy and Big Tribe Builders: lists, templates, campaigns, sequences.',
+    tabs: [
+      { slug: 'lists', label: 'Lists', blurb: 'Label the addresses from CRM › Emails into lists.',
+        help: 'What it is: a list is a label over addresses that already exist in CRM › Emails. One address can be on many lists. Nothing is copied: the names, cities and flags come from the one email database.\n\nHow we work with it: add a list with the row above the grid, then click it. Below, every address appears with a checkbox: tick who belongs. "Add all shown" puts everyone matching the search on the list at once.' },
+      { slug: 'templates', label: 'Templates', blurb: 'Subject and body with placeholders; the style gives the look.',
+        help: 'What it is: a template is the email: subject, a short preheader, and the body. The body is plain text; a blank line makes a paragraph, **bold**, *italic* and [link](https://…) work. The style (Plain, QuinB Academy, Big Tribe Builders) sets the header and the look.\n\nPlaceholders: {{first_name}}, {{last_name}}, {{city}} come from the address. {{personal}} is the line written for that one person on the campaign. {{quote}} is the quote or thought from you set on the campaign.\n\nHow we work with it: click Edit on a template to write the body and see the preview.' },
+      { slug: 'campaigns', label: 'Campaigns', blurb: 'A broadcast: one email, one list, sent now or at a set time.',
+        help: 'What it is: a campaign sends one template to one list from one sender. Senders are set at the top: who the email is from, the reply address, and the postal address the footer must carry.\n\nHow we work with it: add the campaign, pick list, template and sender. Open it (arrow) to see the recipients, write the personal line for each, send yourself a test, then Send now or set a time and Schedule. Anyone who unsubscribed, bounced or marked us as spam is skipped automatically.\n\nSending goes through Resend. Resend takes emails up to 30 days ahead; later ones are handed over by the daily tick.' },
+      { slug: 'sequences', label: 'Sequences', blurb: 'A series of emails on a schedule: day 0, day 3, day 7.',
+        help: 'What it is: a sequence is a campaign with steps. Each step has a template and a day offset from the start. Everyone on the list gets every step, spaced by those days.\n\nHow we work with it: add the sequence, open it, add the steps, pick the start time, then Enrol the list and Schedule. Steps further than 30 days out are handed to Resend by the daily tick when their time comes.' },
     ],
   },
   {
@@ -323,7 +341,7 @@ export function resolveNav(
 
 const ICON_NAMES = new Set<string>([
   'home', 'tribe', 'academy', 'star', 'users', 'briefcase',
-  'rocket', 'megaphone', 'brain', 'book', 'heart', 'coins', 'grid', 'settings', 'compass',
+  'rocket', 'megaphone', 'brain', 'book', 'heart', 'coins', 'grid', 'settings', 'compass', 'mail',
 ]);
 const ACCENTS = new Set<string>(['violet', 'red', 'green', 'orange']);
 

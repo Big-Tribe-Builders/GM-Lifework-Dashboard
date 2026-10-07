@@ -22,6 +22,7 @@ import type { ColumnSetting } from '@/lib/grid';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
+import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
 import { localRows } from '@/lib/data/local';
 
 import { APPS } from '@/lib/seed/apps';
@@ -104,6 +105,16 @@ export const getBtbPlaybook = () => readTable<PlaybookEntry>('btb_playbook_api',
 export const getYearGoals = () => readTable<YearGoal>('goal_years_api', localRows<YearGoal>('goalYears') ?? []);
 export const getQuarterGoals = () => readTable<QuarterGoal>('goal_quarters_api', localRows<QuarterGoal>('goalQuarters') ?? []);
 export const getActionPoints = () => readTable<ActionPoint>('goal_actions_api', localRows<ActionPoint>('goalActions') ?? []);
+
+// Mailing: lists over the CRM emails, templates, senders, campaigns, sends. No seed.
+export const getMailLists = () => readTable<MailList>('mail_lists_api', localRows<MailList>('mailLists') ?? []);
+export const getMailListMembers = () => readTable<MailListMember>('mail_list_members_api', localRows<MailListMember>('mailListMembers') ?? []);
+export const getMailTemplates = () => readTable<MailTemplate>('mail_templates_api', localRows<MailTemplate>('mailTemplates') ?? []);
+export const getMailSenders = () => readTable<MailSender>('mail_senders_api', localRows<MailSender>('mailSenders') ?? []);
+export const getMailCampaigns = () => readTable<MailCampaign>('mail_campaigns_api', localRows<MailCampaign>('mailCampaigns') ?? []);
+export const getMailSteps = () => readTable<MailStep>('mail_sequence_steps_api', localRows<MailStep>('mailSteps') ?? []);
+export const getMailSends = () => readTable<MailSend>('mail_sends_api', localRows<MailSend>('mailSends') ?? []);
+export const getMailSuppressions = () => readTable<MailSuppression>('mail_suppressions_api', localRows<MailSuppression>('mailSuppressions') ?? []);
 
 // Pulse lines she has ticked off, by key. No seed.
 export const getPulseDismissed = () => readTable<{ key: string }>('pulse_dismissed_api', []);
