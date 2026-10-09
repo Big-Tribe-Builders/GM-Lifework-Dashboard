@@ -8,7 +8,7 @@ import {
   POST_STATUS, POST_TONE, POST_STATUSES, BANNER_BUCKET, PLAN_START, AUDIENCES, POST_KINDS,
   type PostStatus, type QuinbPost, type QuinbPostType, type QuinbYear, type QuinbMonth, type QuinbWeek,
 } from '@/lib/quinb';
-import { WEEKDAYS, weeksOfMonth, daysOfWeek, dayLabel, monthLabel, monthsBetween, weekday, addDays, todayIso } from '@/lib/calendar';
+import { WEEKDAYS, weeksOfMonth, daysOfWeek, dayLabel, monthLabel, monthsBetween, weekday, addDays, todayIso, mondayOf } from '@/lib/calendar';
 import { addPost, updatePost, removePost, savePlan, addPostType, updatePostType, removePostType } from '@/app/d/quinb/actions';
 import { saveGridColumn } from '@/app/d/actions';
 import { getSupabase } from '@/lib/supabase';
@@ -41,13 +41,22 @@ function Field({ label, value, onSave, multiline, rows = 3, placeholder, wide }:
   const [state, setState] = useState<'idle' | 'dirty' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
+  // What is on its way to the server, and which save is the latest.
+  const sent = useRef<string | null>(null);
+  const seq = useRef(0);
   // A refresh after a save may not overwrite what she is typing now.
   useEffect(() => { if (state === 'idle' || state === 'saved') setDraft(value ?? ''); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   function commit() {
-    if (draft.trim() === (value ?? '').trim()) { setState((s) => (s === 'dirty' ? 'idle' : s)); return; }
+    const base = sent.current ?? value ?? '';
+    if (draft.trim() === base.trim()) { setState((s) => (s === 'dirty' ? 'idle' : s)); setError(null); return; }
+    const v = draft;
+    const n = ++seq.current;
+    sent.current = v;
     setState('saving'); setError(null);
     start(async () => {
-      const r = await onSave(draft);
+      const r = await onSave(v);
+      if (n !== seq.current) return; // a newer save owns the field now
+      sent.current = null;
       if (r.error) { setState('error'); setError(r.error); } else setState((s) => (s === 'dirty' ? s : 'saved'));
     });
   }
@@ -90,11 +99,20 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
 
   const from = `${year}-01` < PLAN_START ? PLAN_START : `${year}-01`;
   const monthList = monthsBetween(from, `${year}-12`);
+  // The weeks drawn under a month: those whose Monday is in it, plus, for
+  // the month the plan starts, the week holding its first day.
+  const monthWeeks = (month: string) => {
+    const ws = weeksOfMonth(month);
+    const lead = mondayOf(`${month}-01`);
+    return month === PLAN_START && ws[0] !== lead ? [lead, ...ws] : ws;
+  };
+  // Counts come from the days that are drawn, so a number never points at a post that is not shown.
+  const postsIn = (mondays: string[]) => mondays.flatMap(daysOfWeek).flatMap((d) => postsByDay.get(d) ?? []);
   const thisMonth = today.slice(0, 7);
   const [open, setOpen] = useState<Record<string, boolean>>(() => ({ [monthList.includes(thisMonth) ? thisMonth : monthList[0]]: true }));
   const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
-  const yearPosts = posts.filter((p) => p.plannedFor?.startsWith(String(year)));
+  const yearPosts = postsIn(monthList.flatMap(monthWeeks));
 
   return (
     <div className="plan">
@@ -122,7 +140,7 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
 
       {monthList.map((month) => {
         const m = monthRow.get(month);
-        const mPosts = posts.filter((p) => p.plannedFor?.startsWith(month));
+        const mPosts = postsIn(monthWeeks(month));
         const isOpen = !!open[month];
         return (
           <section key={month} className={`plan__month${isOpen ? ' is-open' : ''}`}>
@@ -142,7 +160,7 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
                   <Field wide multiline rows={3} label="Note" placeholder="What we do this month, in your words." value={m?.note ?? null} onSave={(v) => savePlan('month', month, 'note', v)} />
                   <Field label="Link to NotebookLM" placeholder="https://notebooklm.google.com/…" value={m?.notebooklmUrl ?? null} onSave={(v) => savePlan('month', month, 'notebooklmUrl', v)} />
                 </div>
-                {weeksOfMonth(month).map((monday, wi) => {
+                {monthWeeks(month).map((monday, wi) => {
                   const w = weekRow.get(monday);
                   const wKey = `w-${monday}`;
                   const wOpen = !!open[wKey];

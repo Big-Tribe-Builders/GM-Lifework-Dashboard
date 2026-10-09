@@ -100,11 +100,13 @@ grant select on quinb_years_api, quinb_months_api, quinb_weeks_api, quinb_post_t
 
 -- The one-page strategy from 0015 is replaced by the plan. It goes only
 -- if nothing was written in it; otherwise it stays and nothing is lost.
+-- (Nested on purpose: the inner query is only parsed once the table exists.)
 do $$
 begin
-  if to_regclass('public.quinb_strategy') is not null
-     and not exists (select 1 from quinb_strategy where coalesce(trim(body), '') <> '') then
-    drop view if exists quinb_strategy_api;
-    drop table quinb_strategy;
+  if to_regclass('public.quinb_strategy') is not null then
+    if not exists (select 1 from quinb_strategy where coalesce(trim(body), '') <> '') then
+      drop view if exists quinb_strategy_api;
+      drop table quinb_strategy;
+    end if;
   end if;
 end $$;
