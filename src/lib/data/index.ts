@@ -23,7 +23,7 @@ import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import type { Book, Chapter, QuinbMember } from '@/lib/book';
-import type { QuinbStrategy, QuinbPost } from '@/lib/quinb';
+import type { QuinbPost, QuinbYear, QuinbMonth, QuinbWeek, QuinbPostType } from '@/lib/quinb';
 import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
 import { localRows } from '@/lib/data/local';
 
@@ -122,7 +122,10 @@ export const getMailSuppressions = () => readTable<MailSuppression>('mail_suppre
 export const getBook = () => readTable<Book>('book_api', localRows<Book>('book') ?? []);
 export const getChapters = () => readTable<Chapter>('book_chapters_api', localRows<Chapter>('chapters') ?? []);
 export const getQuinbMembers = () => readTable<QuinbMember>('quinb_members_api', localRows<QuinbMember>('quinbMembers') ?? []);
-export const getQuinbStrategy = () => readTable<QuinbStrategy>('quinb_strategy_api', localRows<QuinbStrategy>('quinbStrategy') ?? []);
+export const getQuinbYears = () => readTable<QuinbYear>('quinb_years_api', localRows<QuinbYear>('quinbYears') ?? []);
+export const getQuinbMonths = () => readTable<QuinbMonth>('quinb_months_api', localRows<QuinbMonth>('quinbMonths') ?? []);
+export const getQuinbWeeks = () => readTable<QuinbWeek>('quinb_weeks_api', localRows<QuinbWeek>('quinbWeeks') ?? []);
+export const getQuinbPostTypes = () => readTable<QuinbPostType>('quinb_post_types_api', localRows<QuinbPostType>('quinbPostTypes') ?? []);
 export const getQuinbPosts = () => readTable<QuinbPost>('quinb_posts_api', localRows<QuinbPost>('quinbPosts') ?? []);
 
 // Pulse lines she has ticked off, by key. No seed.

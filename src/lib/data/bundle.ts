@@ -6,7 +6,7 @@ import {
   getBtbPlan, getBtbExperiments, getBtbPlaybook, getPulseDismissed,
   getYearGoals, getQuarterGoals, getActionPoints,
   getMailLists, getMailListMembers, getMailTemplates, getMailSenders, getMailCampaigns, getMailSteps, getMailSends, getMailSuppressions,
-  getBook, getChapters, getQuinbMembers, getQuinbStrategy, getQuinbPosts,
+  getBook, getChapters, getQuinbMembers, getQuinbPosts, getQuinbYears, getQuinbMonths, getQuinbWeeks, getQuinbPostTypes,
 } from '@/lib/data';
 import { missingSupabaseEnv } from '@/lib/supabase';
 import { readClientTasks } from '@/lib/notion';
@@ -21,7 +21,7 @@ import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
 import { BOOK_ID, type Book, type Chapter, type QuinbMember } from '@/lib/book';
-import { STRATEGY_ID, type QuinbStrategy, type QuinbPost } from '@/lib/quinb';
+import type { QuinbPost, QuinbYear, QuinbMonth, QuinbWeek, QuinbPostType } from '@/lib/quinb';
 
 /**
  * Every domain page reads the same bundle.
@@ -92,8 +92,11 @@ export type Bundle = {
   book: Book | null;
   chapters: Chapter[];
   quinbMembers: QuinbMember[];
-  /** QuinB Community: the content strategy page and the planned posts. */
-  quinbStrategy: QuinbStrategy | null;
+  /** QuinB Community: the content plan (years, months, weeks, daily post types) and the posts. */
+  quinbYears: QuinbYear[];
+  quinbMonths: QuinbMonth[];
+  quinbWeeks: QuinbWeek[];
+  quinbPostTypes: QuinbPostType[];
   quinbPosts: QuinbPost[];
 };
 
@@ -105,7 +108,7 @@ export async function loadAll(): Promise<Bundle> {
     upworkLeads, upworkInvoices, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
-    book, chapters, quinbMembers, quinbStrategy, quinbPosts,
+    book, chapters, quinbMembers, quinbPosts, quinbYears, quinbMonths, quinbWeeks, quinbPostTypes,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
@@ -114,7 +117,7 @@ export async function loadAll(): Promise<Bundle> {
     getBtbPlan(), getBtbExperiments(), getBtbPlaybook(), getPulseDismissed(),
     getYearGoals(), getQuarterGoals(), getActionPoints(),
     getMailLists(), getMailListMembers(), getMailTemplates(), getMailSenders(), getMailCampaigns(), getMailSteps(), getMailSends(), getMailSuppressions(),
-    getBook(), getChapters(), getQuinbMembers(), getQuinbStrategy(), getQuinbPosts(),
+    getBook(), getChapters(), getQuinbMembers(), getQuinbPosts(), getQuinbYears(), getQuinbMonths(), getQuinbWeeks(), getQuinbPostTypes(),
   ]);
 
   // If any read fell back, say so once rather than ten times.
@@ -123,7 +126,7 @@ export async function loadAll(): Promise<Bundle> {
     companies, contacts, clientApps, crmEmails, codeProjects, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
-    book, chapters, quinbMembers, quinbStrategy, quinbPosts,
+    book, chapters, quinbMembers, quinbPosts, quinbYears, quinbMonths, quinbWeeks, quinbPostTypes,
   ].find((r) => r.error);
 
   return {
@@ -169,7 +172,10 @@ export async function loadAll(): Promise<Bundle> {
     book: book.rows.find((b) => b.id === BOOK_ID) ?? null,
     chapters: chapters.rows,
     quinbMembers: quinbMembers.rows,
-    quinbStrategy: quinbStrategy.rows.find((r) => r.id === STRATEGY_ID) ?? null,
+    quinbYears: quinbYears.rows,
+    quinbMonths: quinbMonths.rows,
+    quinbWeeks: quinbWeeks.rows,
+    quinbPostTypes: quinbPostTypes.rows,
     quinbPosts: quinbPosts.rows,
   };
 }

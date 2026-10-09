@@ -14,7 +14,7 @@ import { Dashboard, RoadmapBoard, Years, Quarters, Actions } from '@/components/
 import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
 import { About, Chapters } from '@/components/Book';
 import { Members } from '@/components/QuinbMembers';
-import { Strategy, Posts } from '@/components/QuinbContent';
+import { Plan, PostTypes, Posts } from '@/components/QuinbContent';
 import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
@@ -57,8 +57,9 @@ function membersZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): React
   const store = `lifework.quinb-community.${tab.slug}.cols`;
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
-      {tab.slug === 'strategy' ? <Strategy strategy={b.quinbStrategy} />
-        : tab.slug === 'posts' ? <Posts rows={b.quinbPosts} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
+      {tab.slug === 'strategy' ? <Plan years={b.quinbYears} months={b.quinbMonths} weeks={b.quinbWeeks} types={b.quinbPostTypes} posts={b.quinbPosts} postsHref={`/d/${domain.slug}/posts`} />
+        : tab.slug === 'types' ? <PostTypes rows={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
+        : tab.slug === 'posts' ? <Posts rows={b.quinbPosts} types={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
         : <Members rows={b.quinbMembers} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} />}
     </Portal>
   );

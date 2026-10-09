@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { EMAIL_RE } from '@/lib/mail';
-import { STRATEGY_ID, BANNER_BUCKET } from '@/lib/quinb';
+import { BANNER_BUCKET, POST_STATUSES, AUDIENCES, POST_KINDS } from '@/lib/quinb';
 
 /** Writes for the QuinB Community member list. */
 type Result = { error: string | null };
@@ -62,16 +62,6 @@ export async function removeMember(id: string): Promise<Result> {
 
 // ------------------------------------------------------------- content
 
-export async function saveStrategy(body: string): Promise<Result> {
-  const db = getSupabase();
-  if (!db) return { error: 'Supabase is not configured.' };
-  const { error } = await db.from('quinb_strategy').upsert({ id: STRATEGY_ID, body, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  if (error) return { error: error.message };
-  touched();
-  return { error: null };
-}
-
-const POST_STATUS = ['idea', 'draft', 'ready', 'posted'];
 const bannerPrefix = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}/storage/v1/object/public/${BANNER_BUCKET}/`;
 
 function postPatch(field: string, value: string): { patch?: Record<string, unknown>; error?: string } {
@@ -81,7 +71,8 @@ function postPatch(field: string, value: string): { patch?: Record<string, unkno
     case 'body': return { patch: { body: v } };
     case 'space': return { patch: { space: v || null } };
     case 'plannedFor': return !v || DATE.test(v) ? { patch: { planned_for: v || null } } : { error: 'Dates are written 2026-10-09.' };
-    case 'status': return POST_STATUS.includes(v) ? { patch: { status: v } } : { error: 'Not a valid status.' };
+    case 'status': return (POST_STATUSES as string[]).includes(v) ? { patch: { status: v } } : { error: 'Not a valid status.' };
+    case 'postTypeId': return { patch: { post_type_id: v || null } };
     case 'postedUrl': return !v || /^https:\/\/\S+$/.test(v) ? { patch: { posted_url: v || null } } : { error: 'A link starts with https://' };
     case 'bannerUrl': return !v || v.startsWith(bannerPrefix()) ? { patch: { banner_url: v || null } } : { error: 'Banners are uploaded here, not linked.' };
     default: return { error: `Unknown field: ${field}` };
@@ -92,7 +83,7 @@ export async function addPost(input: Record<string, string>): Promise<Result> {
   const db = getSupabase();
   if (!db) return { error: 'Supabase is not configured.' };
   const row: Record<string, unknown> = {};
-  for (const k of ['title', 'space', 'plannedFor']) {
+  for (const k of ['title', 'space', 'plannedFor', 'postTypeId', 'status']) {
     if (k !== 'title' && !input[k]?.trim()) continue;
     const r = postPatch(k, input[k] ?? '');
     if (r.error) return { error: r.error };
@@ -119,6 +110,97 @@ export async function removePost(id: string): Promise<Result> {
   const db = getSupabase();
   if (!db) return { error: 'Supabase is not configured.' };
   const { error } = await db.from('quinb_posts').delete().eq('id', id);
+  if (error) return { error: error.message };
+  touched();
+  return { error: null };
+}
+
+// ---------------------------------------------------------------- plan
+
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const httpsOrEmpty = (v: string) => !v || /^https:\/\/\S+$/.test(v);
+
+/** Saves one field of a year, month or week. The row is created on the first save. */
+export async function savePlan(level: 'year' | 'month' | 'week', key: string, field: string, value: string): Promise<Result> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const v = value.trim() || null;
+  const at = new Date().toISOString();
+  if (level === 'year') {
+    const year = Number(key);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) return { error: 'Not a year.' };
+    const cols: Record<string, string> = { theme: 'theme', audience: 'audience', focus: 'focus', goal: 'goal', notes: 'notes' };
+    if (!(field in cols)) return { error: `Unknown field: ${field}` };
+    if (field === 'audience' && v && !(AUDIENCES as readonly string[]).includes(v)) return { error: 'External or Community.' };
+    const { error } = await db.from('quinb_years').upsert({ year, [cols[field]]: v, updated_at: at }, { onConflict: 'year' });
+    if (error) return { error: error.message };
+  } else if (level === 'month') {
+    if (!MONTH_RE.test(key)) return { error: 'Not a month.' };
+    const cols: Record<string, string> = { theme: 'theme', focus: 'focus', goal: 'goal', note: 'note', notebooklmUrl: 'notebooklm_url' };
+    if (!(field in cols)) return { error: `Unknown field: ${field}` };
+    if (field === 'notebooklmUrl' && !httpsOrEmpty(v ?? '')) return { error: 'A link starts with https://' };
+    const { error } = await db.from('quinb_months').upsert({ month: key, [cols[field]]: v, updated_at: at }, { onConflict: 'month' });
+    if (error) return { error: error.message };
+  } else {
+    if (!DATE.test(key) || new Date(`${key}T00:00:00Z`).getUTCDay() !== 1) return { error: 'A week starts on a Monday.' };
+    const cols: Record<string, string> = { theme: 'theme', plan: 'plan' };
+    if (!(field in cols)) return { error: `Unknown field: ${field}` };
+    const { error } = await db.from('quinb_weeks').upsert({ monday: key, [cols[field]]: v, updated_at: at }, { onConflict: 'monday' });
+    if (error) return { error: error.message };
+  }
+  touched();
+  return { error: null };
+}
+
+// ------------------------------------------------------- daily post types
+
+function typePatch(field: string, value: string): { patch?: Record<string, unknown>; error?: string } {
+  const keepLines = ['purpose', 'prompt', 'example'].includes(field);
+  const v = keepLines ? value : value.trim();
+  switch (field) {
+    case 'weekday': { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 7 ? { patch: { weekday: n } } : { error: 'Pick a day.' }; }
+    case 'title': return v ? { patch: { title: v } } : { error: 'A title is needed.' };
+    case 'kind': return !v || (POST_KINDS as readonly string[]).includes(v) ? { patch: { kind: v || null } } : { error: 'Article, Question or Quick Post.' };
+    case 'hour': return { patch: { hour: v || null } };
+    case 'space': return { patch: { space: v || null } };
+    case 'postedBy': return { patch: { posted_by: v || null } };
+    case 'purpose': case 'prompt': case 'example': return { patch: { [field]: v } };
+    case 'bannerUrl': return !v || v.startsWith(bannerPrefix()) ? { patch: { banner_url: v || null } } : { error: 'Banners are uploaded here, not linked.' };
+    default: return { error: `Unknown field: ${field}` };
+  }
+}
+
+export async function addPostType(input: Record<string, string>): Promise<Result> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const row: Record<string, unknown> = {};
+  for (const k of ['weekday', 'title', 'kind', 'hour', 'space', 'postedBy']) {
+    if (!['weekday', 'title'].includes(k) && !input[k]?.trim()) continue;
+    const r = typePatch(k, input[k] ?? '');
+    if (r.error) return { error: r.error };
+    Object.assign(row, r.patch);
+  }
+  const { error } = await db.from('quinb_post_types').insert(row);
+  if (error) return { error: error.code === '23505' ? 'That day already has a post type.' : error.message };
+  touched();
+  return { error: null };
+}
+
+export async function updatePostType(id: string, field: string, value: string): Promise<Result> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const r = typePatch(field, value);
+  if (r.error) return { error: r.error };
+  const { error } = await db.from('quinb_post_types').update({ ...r.patch, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) return { error: error.code === '23505' ? 'That day already has a post type.' : error.message };
+  touched();
+  return { error: null };
+}
+
+export async function removePostType(id: string): Promise<Result> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured.' };
+  const { error } = await db.from('quinb_post_types').delete().eq('id', id);
   if (error) return { error: error.message };
   touched();
   return { error: null };
