@@ -28,7 +28,7 @@ export function PasswordForm() {
         <input id="pw-b" type="password" required minLength={8} autoComplete="new-password" value={b} onChange={(e) => setB(e.target.value)} />
       </div>
       {error ? <p className="field__error" role="alert">{error}</p> : null}
-      <button type="submit" className="btn btn--primary gate__btn" disabled={pending}>{pending ? 'Saving…' : 'Save and open Lifework'}</button>
+      <button type="submit" className="btn btn--primary gate__btn" disabled={pending}>{pending ? 'Saving…' : 'Save and open Big Tribe Builders'}</button>
     </form>
   );
 }

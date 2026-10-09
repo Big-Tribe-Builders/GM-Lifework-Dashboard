@@ -6,6 +6,7 @@ import {
   getBtbPlan, getBtbExperiments, getBtbPlaybook, getPulseDismissed,
   getYearGoals, getQuarterGoals, getActionPoints,
   getMailLists, getMailListMembers, getMailTemplates, getMailSenders, getMailCampaigns, getMailSteps, getMailSends, getMailSuppressions,
+  getBook, getChapters, getQuinbMembers,
 } from '@/lib/data';
 import { missingSupabaseEnv } from '@/lib/supabase';
 import { readClientTasks } from '@/lib/notion';
@@ -19,6 +20,7 @@ import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
+import type { Book, Chapter, QuinbMember } from '@/lib/book';
 
 /**
  * Every domain page reads the same bundle.
@@ -84,6 +86,11 @@ export type Bundle = {
   mailSteps: MailStep[];
   mailSends: MailSend[];
   mailSuppressions: MailSuppression[];
+
+  /** The book, and the QuinB Academy members. */
+  book: Book | null;
+  chapters: Chapter[];
+  quinbMembers: QuinbMember[];
 };
 
 export async function loadAll(): Promise<Bundle> {
@@ -94,6 +101,7 @@ export async function loadAll(): Promise<Bundle> {
     upworkLeads, upworkInvoices, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
+    book, chapters, quinbMembers,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
@@ -102,6 +110,7 @@ export async function loadAll(): Promise<Bundle> {
     getBtbPlan(), getBtbExperiments(), getBtbPlaybook(), getPulseDismissed(),
     getYearGoals(), getQuarterGoals(), getActionPoints(),
     getMailLists(), getMailListMembers(), getMailTemplates(), getMailSenders(), getMailCampaigns(), getMailSteps(), getMailSends(), getMailSuppressions(),
+    getBook(), getChapters(), getQuinbMembers(),
   ]);
 
   // If any read fell back, say so once rather than ten times.
@@ -148,5 +157,8 @@ export async function loadAll(): Promise<Bundle> {
     mailSteps: mailSteps.rows,
     mailSends: mailSends.rows,
     mailSuppressions: mailSuppressions.rows,
+    book: book.rows[0] ?? null,
+    chapters: chapters.rows,
+    quinbMembers: quinbMembers.rows,
   };
 }

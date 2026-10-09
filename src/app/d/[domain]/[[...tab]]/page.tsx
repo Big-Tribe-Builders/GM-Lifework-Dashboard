@@ -11,9 +11,9 @@ import { getDomainSettings, getGridColumns } from '@/lib/data';
 export async function generateMetadata({ params }: { params: Promise<{ domain: string; tab?: string[] }> }) {
   const { domain: slug, tab } = await params;
   const domain = DOMAIN_BY_SLUG.get(slug);
-  if (!domain) return { title: 'Not found — Lifework' };
+  if (!domain) return { title: 'Not found — Big Tribe Builders' };
   const t = findTab(domain, tab?.[0]);
-  return { title: `${domain.label} · ${t.label} — Lifework` };
+  return { title: `${domain.label} · ${t.label} — Big Tribe Builders` };
 }
 
 /**

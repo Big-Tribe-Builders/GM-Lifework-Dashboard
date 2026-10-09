@@ -3,7 +3,7 @@ import { PageHead, Widget, Stat, Launcher, SourceNote } from '@/components/ui';
 import { accentAt } from '@/lib/nav';
 import type { AppCategory } from '@/lib/types';
 
-export const metadata = { title: 'Launchpad — Lifework' };
+export const metadata = { title: 'Launchpad — Big Tribe Builders' };
 
 const ORDER: AppCategory[] = [
   'Communities', 'Work & Delivery', 'Content & Social',

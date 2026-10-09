@@ -4,7 +4,7 @@
  * Two rules decide everything here:
  *
  *   1. The left rail is WHERE you are. It is stable, it never reorders, and
- *      you learn it once. Twelve destinations in five groups.
+ *      you learn it once. A dozen destinations in five groups.
  *   2. The tab strip is WHAT you are looking at inside that place. Maximum
  *      five tabs, and there is no level below it. If something needs a third
  *      level, it is its own domain or it is a link out.
@@ -42,9 +42,9 @@ export type Domain = {
 };
 
 export type Accent = 'violet' | 'red' | 'green' | 'orange';
-export type DomainGroup = 'Ventures' | 'Projects' | 'Work' | 'Intelligence' | 'Life';
+export type DomainGroup = 'Ventures' | 'Work' | 'Marketing' | 'Intelligence' | 'Assets';
 
-export const GROUP_ORDER: DomainGroup[] = ['Ventures', 'Projects', 'Work', 'Intelligence', 'Life'];
+export const GROUP_ORDER: DomainGroup[] = ['Ventures', 'Work', 'Marketing', 'Intelligence', 'Assets'];
 
 /** Rotate the four so no two neighbours in a list ever match. */
 export function accentAt(index: number): Accent {
@@ -76,7 +76,8 @@ export const DOMAINS: Domain[] = [
     blurb: "A host's home base — resources, live meetups, and the peer room of outstanding hosts.",
     tabs: [
       { slug: 'pulse', label: 'Pulse', blurb: 'Members, energy and what needs a host right now.' },
-      { slug: 'members', label: 'Members', blurb: 'Joins, activations and the ones going quiet.' },
+      { slug: 'members', label: 'Members', blurb: 'The members: who, member since, last logged in, interactions.',
+        help: 'What it is: the list of QuinB Academy members. Name, email, member since, last logged in, number of interactions, notes.\n\nWhere it comes from: nothing yet. Once Mighty Networks can be read (the subscription with the API), the list fills itself. Until then rows are typed in by hand.\n\nHow we work with it: add a member with the row above the grid; type straight into the cells.' },
       { slug: 'programme', label: 'Programme', blurb: 'Courses, live meetups and the calendar ahead.' },
       { slug: 'team', label: 'Team', blurb: 'Hosts, moderators and who owns which space.' },
       { slug: 'revenue', label: 'Revenue', blurb: 'Subscriptions, churn and the money picture.' },
@@ -97,11 +98,11 @@ export const DOMAINS: Domain[] = [
     ],
   },
 
-  // ---------------------------------------------------------------- Projects
+  // -------------------------------------------------------------------- Work
   {
     slug: 'goal-navigator',
     label: 'Goal Navigator',
-    group: 'Projects',
+    group: 'Work',
     icon: 'compass',
     accent: 'green',
     blurb: 'Goals for the years ahead, cut into quarters, cut into action points.',
@@ -119,11 +120,11 @@ export const DOMAINS: Domain[] = [
     ],
   },
 
-  // -------------------------------------------------------------------- Work
+  // --------------------------------------------------------------- Marketing
   {
     slug: 'clients',
     label: 'CRM',
-    group: 'Work',
+    group: 'Marketing',
     icon: 'users',
     accent: 'orange',
     blurb: '',
@@ -137,7 +138,7 @@ export const DOMAINS: Domain[] = [
   {
     slug: 'mailing',
     label: 'Mailing',
-    group: 'Work',
+    group: 'Marketing',
     icon: 'mail',
     accent: 'green',
     blurb: 'One sender system for QuinB Academy and Big Tribe Builders: lists, templates, campaigns, sequences.',
@@ -155,7 +156,7 @@ export const DOMAINS: Domain[] = [
   {
     slug: 'upwork',
     label: 'Upwork',
-    group: 'Work',
+    group: 'Marketing',
     icon: 'briefcase',
     accent: 'violet',
     blurb: 'Inbound work — every conversation, who became a client, and what they paid.',
@@ -171,7 +172,7 @@ export const DOMAINS: Domain[] = [
   {
     slug: 'apps',
     label: 'Applications',
-    group: 'Work',
+    group: 'Assets',
     icon: 'rocket',
     accent: 'red',
     blurb: 'Everything you and the team have shipped, and whether it is still up.',
@@ -185,7 +186,7 @@ export const DOMAINS: Domain[] = [
   {
     slug: 'content',
     label: 'Content & Social',
-    group: 'Work',
+    group: 'Marketing',
     icon: 'megaphone',
     accent: 'green',
     blurb: 'One pipeline, every platform — written in your voice, not a generic one.',
@@ -215,48 +216,22 @@ export const DOMAINS: Domain[] = [
     ],
   },
 
-  // -------------------------------------------------------------------- Life
+  // ------------------------------------------------------------------ Assets
   {
-    slug: 'studying',
-    label: 'Studying',
-    group: 'Life',
+    slug: 'book',
+    label: 'The Book',
+    group: 'Assets',
     icon: 'book',
     accent: 'violet',
-    blurb: 'SPI Academy and everything else you are actively learning.',
+    blurb: 'Big Tribe Builders, the book: what it is, its chapters, and the writing itself.',
     tabs: [
-      { slug: 'next', label: 'Next up', blurb: 'The next lesson, and the plan for this week.' },
-      { slug: 'courses', label: 'Courses', blurb: 'Every course, and how far through you are.' },
-      { slug: 'notes', label: 'Notes', blurb: 'What you took from it, in your words.' },
-      { slug: 'apply', label: 'Apply', blurb: 'Lessons turned into actual work.' },
+      { slug: 'about', label: 'About the book', blurb: 'What the book is, and the style we write in.',
+        help: 'What it is: the general description of the book — title, what it is about, and the style the chapters are written in.\n\nHow we work with it: write here first. Every chapter is written from this page, so when the description or the style changes, change it here.' },
+      { slug: 'chapters', label: 'Chapters', blurb: 'The chapters in order, and the text of each one.',
+        help: 'What it is: one line per chapter — number, title, a one-line summary, status and word count. The arrow opens the chapter itself, where the text is written.\n\nHow we work with it: add chapters with the row above the grid. Open one to write. The text saves when you click away or press Ctrl+S / Cmd+S. Status: To do, Drafting, Review, Done.' },
     ],
   },
-  {
-    slug: 'fitness',
-    label: 'Fitness',
-    group: 'Life',
-    icon: 'heart',
-    accent: 'red',
-    blurb: 'The non-negotiable one. Sports area of the Goal Navigator.',
-    tabs: [
-      { slug: 'week', label: 'This week', blurb: 'Planned, done and missed.' },
-      { slug: 'plan', label: 'Plan', blurb: 'The routine you are actually following.' },
-      { slug: 'trend', label: 'Trend', blurb: 'Consistency over weeks, not days.' },
-    ],
-  },
-  {
-    slug: 'accountancy',
-    label: 'Accountancy',
-    group: 'Life',
-    icon: 'coins',
-    accent: 'green',
-    blurb: 'Invoices out, money in, and nothing missed at quarter end.',
-    tabs: [
-      { slug: 'overview', label: 'Overview', blurb: 'Where the money stands this month.' },
-      { slug: 'invoices', label: 'Invoices', blurb: 'Sent, paid and overdue.' },
-      { slug: 'expenses', label: 'Expenses', blurb: 'Subscriptions and what they cost you a year.' },
-      { slug: 'vat', label: 'VAT & filings', blurb: 'Deadlines that carry a fine.' },
-    ],
-  },
+
 ];
 
 export const DOMAIN_BY_SLUG = new Map(DOMAINS.map((d) => [d.slug, d]));

@@ -297,36 +297,6 @@ export function ZoneGrid({ domain, tab, blurb, b }: {
       return pending(['Worker', 'Building', 'Waiting on', 'Last seen'],
         'The workers are not reporting into this yet.', store);
 
-    // --------------------------------------------------------------- life
-    case 'studying/next':
-      return <Grid rows={b.courses.filter((c) => c.state === 'studying')}
-        columns={COURSE_COLS} rowKey={(c) => c.id} store={store}
-        empty="Nothing in progress." />;
-    case 'studying/courses':
-      return <Grid rows={b.courses} columns={COURSE_COLS} rowKey={(c) => c.id} store={store}
-        empty="No courses recorded." />;
-    case 'studying/notes':
-      return pending(['Note', 'Course', 'Taken'], 'Notes are not stored here yet.', store);
-    case 'studying/apply':
-      return work('Nothing from a course has turned into work yet.');
-
-    case 'fitness/week':
-      return work('Nothing planned.');
-    case 'fitness/plan':
-      return pending(['Session', 'Day', 'Duration'], 'The routine is not recorded here yet.', store);
-    case 'fitness/trend':
-      return <Grid rows={b.goals.filter((g) => g.tier === 'week')} columns={GOAL_COLS}
-        rowKey={(g) => g.id} store={store} empty="No weeks recorded." />;
-
-    case 'accountancy/overview':
-      return <Grid rows={b.goals} columns={GOAL_COLS} rowKey={(g) => g.id} store={store}
-        empty="Nothing recorded." />;
-    case 'accountancy/invoices':
-    case 'accountancy/expenses':
-    case 'accountancy/vat':
-      return pending(['What', 'Amount', 'Due', 'State'],
-        'Money is not read from anywhere yet. Your Upwork earnings live under Upwork.', store);
-
     // ------------------------------------------------------------ ventures
     case 'quinb-academy/pulse':
       return <Grid rows={b.signals.filter((s) => s.domain === domain)}

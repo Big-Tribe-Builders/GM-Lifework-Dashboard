@@ -14,8 +14,8 @@ import { currentUser } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Lifework — Giulia May',
-  description: 'One operational surface for every venture, client and life domain.',
+  title: 'Big Tribe Builders',
+  description: 'The Big Tribe Builders app: ventures, work, marketing, intelligence and assets in one place.',
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

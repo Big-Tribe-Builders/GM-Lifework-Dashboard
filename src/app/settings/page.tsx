@@ -4,7 +4,7 @@ import { accentAt, DOMAINS, DOMAIN_BY_SLUG } from '@/lib/nav';
 import { adminClient, currentUser, ADMIN_ENV, authEnabled } from '@/lib/auth';
 import { Users, type UserRow } from '@/components/Users';
 
-export const metadata = { title: 'Settings — Lifework' };
+export const metadata = { title: 'Settings — Big Tribe Builders' };
 
 /**
  * Settings.

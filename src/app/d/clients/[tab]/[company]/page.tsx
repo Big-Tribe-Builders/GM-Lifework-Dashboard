@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ company: 
   const { company } = await params;
   const b = await loadAll();
   const row = b.companies.find((c) => c.id === company);
-  return { title: row ? `${row.name} — Lifework` : 'Client — Lifework' };
+  return { title: row ? `${row.name} — Big Tribe Builders` : 'Client — Big Tribe Builders' };
 }
 
 export default async function CompanyPage({

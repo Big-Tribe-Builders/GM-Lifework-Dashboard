@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/auth';
 import { PasswordForm } from '@/components/PasswordForm';
 
-export const metadata = { title: 'Choose a password — Lifework' };
+export const metadata = { title: 'Choose a password — Big Tribe Builders' };
 
 export default async function SetPassword() {
   const me = await currentUser();

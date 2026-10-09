@@ -12,6 +12,8 @@ import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
 import { Pulse } from '@/components/Pulse';
 import { Dashboard, RoadmapBoard, Years, Quarters, Actions } from '@/components/GoalNav';
 import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
+import { About, Chapters } from '@/components/Book';
+import { Members } from '@/components/QuinbMembers';
 import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
@@ -30,8 +32,33 @@ export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: Vi
     case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b);
     case 'goal-navigator': return goalZone(domain, tab, b, view);
     case 'mailing': return mailingZone(domain, tab, b, view);
+    case 'book': return bookZone(domain, tab, b, view);
+    case 'quinb-academy': return tab.slug === 'members' ? membersZone(domain, tab, b, view) : gridZone(domain, tab, b);
     default: return gridZone(domain, tab, b);
   }
+}
+
+/** The book: About, and the chapters with their text. */
+function bookZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
+  const store = `lifework.book.${tab.slug}.cols`;
+  const body = tab.slug === 'chapters'
+    ? <Chapters rows={b.chapters} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
+    : <About book={b.book} />;
+  return (
+    <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
+      {body}
+    </Portal>
+  );
+}
+
+/** QuinB Academy › Members: the list, typed by hand until Mighty Networks can be read. */
+function membersZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
+  const store = `lifework.quinb.${tab.slug}.cols`;
+  return (
+    <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
+      <Members rows={b.quinbMembers} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} />
+    </Portal>
+  );
 }
 
 /** Mailing: lists over the CRM emails, templates, campaigns, sequences. */
@@ -124,8 +151,6 @@ export function zoneCounts(domain: Domain, b: Bundle): Record<string, number> {
       };
     case 'brain':
       return { sources: b.brainSources.filter((s) => s.state === 'connected').length };
-    case 'studying':
-      return { courses: b.courses.filter((c) => c.state !== 'done').length };
     default:
       return {};
   }

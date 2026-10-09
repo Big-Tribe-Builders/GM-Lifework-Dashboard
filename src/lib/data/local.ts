@@ -31,6 +31,9 @@ export type LocalFixture = {
   mailSteps?: unknown[];
   mailSends?: unknown[];
   mailSuppressions?: unknown[];
+  book?: unknown[];
+  chapters?: unknown[];
+  quinbMembers?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;

@@ -22,6 +22,7 @@ import type { ColumnSetting } from '@/lib/grid';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
+import type { Book, Chapter, QuinbMember } from '@/lib/book';
 import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
 import { localRows } from '@/lib/data/local';
 
@@ -115,6 +116,11 @@ export const getMailCampaigns = () => readTable<MailCampaign>('mail_campaigns_ap
 export const getMailSteps = () => readTable<MailStep>('mail_sequence_steps_api', localRows<MailStep>('mailSteps') ?? []);
 export const getMailSends = () => readTable<MailSend>('mail_sends_api', localRows<MailSend>('mailSends') ?? []);
 export const getMailSuppressions = () => readTable<MailSuppression>('mail_suppressions_api', localRows<MailSuppression>('mailSuppressions') ?? []);
+
+// The book and the QuinB members. No seed.
+export const getBook = () => readTable<Book>('book_api', localRows<Book>('book') ?? []);
+export const getChapters = () => readTable<Chapter>('book_chapters_api', localRows<Chapter>('chapters') ?? []);
+export const getQuinbMembers = () => readTable<QuinbMember>('quinb_members_api', localRows<QuinbMember>('quinbMembers') ?? []);
 
 // Pulse lines she has ticked off, by key. No seed.
 export const getPulseDismissed = () => readTable<{ key: string }>('pulse_dismissed_api', []);

@@ -48,10 +48,9 @@ export function Sidebar({ counts, overrides = {}, collections = [], signedIn = f
   return (
     <aside className={`sidebar${tight ? ' sidebar--tight' : ''}`}>
       <div className="sidebar__brand">
-        <span className="sidebar__mark">GM</span>
+        <span className="sidebar__mark">BTB</span>
         <div className="sidebar__brandtext">
-          <div className="sidebar__wordmark">Lifework</div>
-          <div className="muted" style={{ fontSize: 11.5 }}>Giulia May</div>
+          <div className="sidebar__wordmark">Big Tribe Builders</div>
         </div>
         <button
           type="button"
