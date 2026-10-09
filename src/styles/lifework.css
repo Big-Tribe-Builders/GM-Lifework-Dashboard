@@ -2088,3 +2088,6 @@ main.portal {
 .typebrief__text { white-space: pre-wrap; margin: 8px 0 0; }
 .banner__note { margin: 0; font-size: 12px; }
 @media (max-width: 900px) { .plan__day { grid-template-columns: 90px 1fr; } .plan__posts { grid-column: 1 / -1; } .plan__body, .plan__body--week { padding-left: 12px; } }
+
+.notice__list { margin: 2px 0 0; padding-left: 18px; }
+.notice__list li { margin: 1px 0; }

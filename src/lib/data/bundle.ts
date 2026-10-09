@@ -120,14 +120,15 @@ export async function loadAll(): Promise<Bundle> {
     getBook(), getChapters(), getQuinbMembers(), getQuinbPosts(), getQuinbYears(), getQuinbMonths(), getQuinbWeeks(), getQuinbPostTypes(),
   ]);
 
-  // If any read fell back, say so once rather than ten times.
-  const failed = [
+  // Every read that failed, each message once, so one missing table cannot hide another.
+  const failedReads = [
     tasks, apps, brainSources, voiceRules, content, courses, goals, signals,
     companies, contacts, clientApps, crmEmails, codeProjects, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
     book, chapters, quinbMembers, quinbPosts, quinbYears, quinbMonths, quinbWeeks, quinbPostTypes,
-  ].find((r) => r.error);
+  ];
+  const errors = [...new Set(failedReads.map((r) => r.error).filter((e): e is string => !!e))];
 
   return {
     tasks: tasks.rows,
@@ -139,7 +140,7 @@ export async function loadAll(): Promise<Bundle> {
     goals: goals.rows,
     signals: signals.rows,
     source: tasks.source,
-    error: failed?.error ?? null,
+    error: errors.length ? errors.join('\n') : null,
 
     companies: companies.rows,
     contacts: contacts.rows,

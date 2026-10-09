@@ -159,6 +159,9 @@ export function Launcher({
 }
 
 /** Says where the rows on screen came from. Honest by default. */
+/** One line per failed read; the bundle joins them with newlines. */
+const errorLines = (e: string) => e.split('\n').filter(Boolean);
+
 export function SourceNote({
   source, error, missingEnv = [],
 }: {
@@ -176,15 +179,21 @@ export function SourceNote({
       </span>
       <div>
         <p className="row__title" style={{ fontSize: 14 }}>
-          {error ? 'Supabase query failed — showing seed data' : 'Running on seed data'}
+          {!error ? 'Running on seed data'
+            : source === 'seed' ? 'Supabase query failed — showing seed data'
+            : `${errorLines(error).length === 1 ? 'A table' : `${errorLines(error).length} tables`} could not be read — everything else reads normally`}
         </p>
-        <p className="muted" style={{ marginTop: 2 }}>
-          {error
-            ? error
-            : missingEnv.length > 0
+        {error ? (
+          <ul className="muted notice__list" style={{ marginTop: 2 }}>
+            {errorLines(error).map((e) => <li key={e}>{e}</li>)}
+          </ul>
+        ) : (
+          <p className="muted" style={{ marginTop: 2 }}>
+            {missingEnv.length > 0
               ? `This build could not see ${missingEnv.join(' or ')}. Check the name in Vercel matches character for character, then redeploy.`
               : 'The database is configured but returned no rows.'}
-        </p>
+          </p>
+        )}
       </div>
     </div>
   );
