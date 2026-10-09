@@ -8,7 +8,7 @@ import { EMAIL_RE } from '@/lib/mail';
 type Result = { error: string | null };
 const touched = () => revalidatePath('/d/quinb-academy', 'layout');
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE = /^(19|20)\d{2}-\d{2}-\d{2}$/;
 
 function patchFor(field: string, value: string): { patch?: Record<string, unknown>; error?: string } {
   const v = value.trim();
@@ -17,7 +17,7 @@ function patchFor(field: string, value: string): { patch?: Record<string, unknow
     case 'email': return !v || EMAIL_RE.test(v) ? { patch: { email: v || null } } : { error: 'That is not an email address.' };
     case 'memberSince': return !v || DATE.test(v) ? { patch: { member_since: v || null } } : { error: 'Dates are written 2026-10-09.' };
     case 'lastLogin': return !v || DATE.test(v) ? { patch: { last_login: v || null } } : { error: 'Dates are written 2026-10-09.' };
-    case 'interactions': return !v ? { patch: { interactions: null } } : Number.isFinite(Number(v)) ? { patch: { interactions: Math.round(Number(v)) } } : { error: 'A number, please.' };
+    case 'interactions': return !v ? { patch: { interactions: null } } : Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) < 1e9 ? { patch: { interactions: Math.round(Number(v)) } } : { error: 'A number, please.' };
     case 'notes': return { patch: { notes: v || null } };
     default: return { error: `Unknown field: ${field}` };
   }

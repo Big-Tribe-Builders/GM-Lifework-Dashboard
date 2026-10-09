@@ -94,22 +94,22 @@ function Remove({ table, id, what, body = 'It cannot be undone.' }: { table: Mai
 type Field = { key: string; placeholder: string; wide?: boolean; options?: { value: string; label: string }[]; type?: string };
 
 function AddRow({ table, fields, defaults = {}, label = '+ Add' }: { table: MailTable; fields: Field[]; defaults?: Record<string, string>; label?: string }) {
-  const [form, setForm] = useState<Record<string, string>>(defaults);
+  const [form, setForm] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
     <form className="addrow" onSubmit={(e) => {
       e.preventDefault(); setError(null);
-      start(async () => { const r = await addMail(table, { ...defaults, ...form }); if (r.error) setError(r.error); else setForm(defaults); });
+      start(async () => { const r = await addMail(table, { ...defaults, ...form }); if (r.error) setError(r.error); else setForm({}); });
     }}>
       {fields.map((f) => f.options ? (
-        <select key={f.key} value={form[f.key] ?? ''} aria-label={f.placeholder} onChange={(e) => setForm((x) => ({ ...x, [f.key]: e.target.value }))}>
+        <select key={f.key} value={form[f.key] ?? defaults[f.key] ?? ''} aria-label={f.placeholder} onChange={(e) => setForm((x) => ({ ...x, [f.key]: e.target.value }))}>
           <option value="">{f.placeholder}</option>
           {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       ) : (
         <input key={f.key} type={f.type ?? 'text'} className={f.wide ? 'addrow__wide' : undefined} placeholder={f.placeholder} aria-label={f.placeholder}
-          value={form[f.key] ?? ''} onChange={(e) => setForm((x) => ({ ...x, [f.key]: e.target.value }))} />
+          value={form[f.key] ?? defaults[f.key] ?? ''} onChange={(e) => setForm((x) => ({ ...x, [f.key]: e.target.value }))} />
       ))}
       <button type="submit" className="btn btn--primary" disabled={pending}>{pending ? 'Adding…' : label}</button>
       {error ? <span className="cell__error">{error}</span> : null}

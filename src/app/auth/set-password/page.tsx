@@ -10,7 +10,7 @@ export default async function SetPassword() {
   return (
     <main className="gate">
       <section className="card gate__card">
-        <span className="sidebar__mark">GM</span>
+        <span className="sidebar__mark">BTB</span>
         <h1 className="page-title" style={{ fontSize: 22, marginTop: 14 }}>Welcome</h1>
         <p className="muted" style={{ marginTop: 4 }}>Choose a password for {me.email}.</p>
         <PasswordForm />

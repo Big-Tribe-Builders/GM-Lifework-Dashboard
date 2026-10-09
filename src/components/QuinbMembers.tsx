@@ -12,7 +12,7 @@ import { AddRow, Remove, DateCell } from '@/components/rowkit';
 export function Members({ rows, settings, accent, store }: {
   rows: QuinbMember[]; settings?: Record<string, ColumnSetting>; accent?: string; store: string;
 }) {
-  const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name) || (a.email ?? '').localeCompare(b.email ?? '') || a.id.localeCompare(b.id));
   const text = (field: 'name' | 'email' | 'notes', label: string) => (r: QuinbMember) => (
     <EditableCell kind="text" value={r[field]} label={`${label} of ${r.name}`} onSave={(v) => updateMember(r.id, field, v)} />
   );

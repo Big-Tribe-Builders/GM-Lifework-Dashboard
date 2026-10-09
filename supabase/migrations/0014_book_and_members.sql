@@ -61,3 +61,13 @@ select id, name, email, member_since as "memberSince", last_login as "lastLogin"
 from quinb_members;
 
 grant select on book_api, book_chapters_api, quinb_members_api to anon;
+
+-- The rail was regrouped in code (Ventures · Work · Marketing · Intelligence ·
+-- Assets). A stored place from the old rail no longer means what it did, so
+-- the stored places of the moved spaces and the collection order are cleared;
+-- names, icons and colours she chose are kept. Safe to re-run.
+update domain_settings
+   set group_name = null, sort_order = null
+ where slug in ('goal-navigator','clients','mailing','upwork','apps','content','book');
+delete from domain_settings where slug in ('studying','fitness','accountancy');
+delete from collection_settings;

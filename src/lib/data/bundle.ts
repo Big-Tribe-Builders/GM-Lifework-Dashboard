@@ -20,7 +20,7 @@ import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
-import type { Book, Chapter, QuinbMember } from '@/lib/book';
+import { BOOK_ID, type Book, type Chapter, type QuinbMember } from '@/lib/book';
 
 /**
  * Every domain page reads the same bundle.
@@ -114,8 +114,13 @@ export async function loadAll(): Promise<Bundle> {
   ]);
 
   // If any read fell back, say so once rather than ten times.
-  const failed = [tasks, apps, brainSources, voiceRules, content, courses, goals, signals]
-    .find((r) => r.error);
+  const failed = [
+    tasks, apps, brainSources, voiceRules, content, courses, goals, signals,
+    companies, contacts, clientApps, crmEmails, codeProjects, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
+    goalYears, goalQuarters, goalActions,
+    mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
+    book, chapters, quinbMembers,
+  ].find((r) => r.error);
 
   return {
     tasks: tasks.rows,
@@ -157,7 +162,7 @@ export async function loadAll(): Promise<Bundle> {
     mailSteps: mailSteps.rows,
     mailSends: mailSends.rows,
     mailSuppressions: mailSuppressions.rows,
-    book: book.rows[0] ?? null,
+    book: book.rows.find((b) => b.id === BOOK_ID) ?? null,
     chapters: chapters.rows,
     quinbMembers: quinbMembers.rows,
   };

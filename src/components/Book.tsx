@@ -27,7 +27,8 @@ function AboutField({ field, label, hint, value, rows }: { field: AboutField; la
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
-  useEffect(() => { setDraft(value); }, [value]);
+  // A refresh after a save may not overwrite what she is typing now.
+  useEffect(() => { if (state === 'idle' || state === 'saved') setDraft(value); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   function commit() {
     if (draft.trim() === value.trim()) return;
     setState('saving'); setError(null);
@@ -93,7 +94,7 @@ export function Chapters({ rows, settings, accent, store, peek, base }: {
         fields={[{ key: 'number', placeholder: 'No.', type: 'number' }, { key: 'title', placeholder: 'Chapter title', wide: true }]} />
       <Grid rows={sorted} columns={columns} rowKey={(r) => r.id} store={store} settings={settings} accent={accent}
         onColumnSettings={(k, i) => saveGridColumn(store, k, i)} empty="No chapters yet. Add the first one above." />
-      {open ? <ChapterPanel chapter={open} closeHref={base} /> : null}
+      {open ? <ChapterPanel key={open.id} chapter={open} closeHref={base} /> : null}
     </div>
   );
 }
@@ -106,7 +107,6 @@ function ChapterPanel({ chapter, closeHref }: { chapter: Chapter; closeHref: str
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
   const area = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => { setBody(chapter.body); setSummary(chapter.summary ?? ''); setState('idle'); }, [chapter.id, chapter.body, chapter.summary]);
 
   function save() {
     if (body === chapter.body && summary === (chapter.summary ?? '')) { setState('idle'); return; }
@@ -115,13 +115,13 @@ function ChapterPanel({ chapter, closeHref }: { chapter: Chapter; closeHref: str
       const r1 = body === chapter.body ? { error: null } : await updateChapter(chapter.id, 'body', body);
       const r2 = summary === (chapter.summary ?? '') ? { error: null } : await updateChapter(chapter.id, 'summary', summary);
       const err = r1.error ?? r2.error;
-      if (err) { setState('error'); setError(err); } else setState('saved');
+      if (err) { setState('error'); setError(err); } else setState((st) => (st === 'dirty' ? st : 'saved'));
     });
   }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); area.current?.blur(); save(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); save(); return; }
       if (e.key !== 'Escape' || e.defaultPrevented) return;
       const t = e.target as Element | null;
       if (t?.closest('input, textarea, select, dialog') || document.querySelector('dialog[open]')) return;
