@@ -76,8 +76,6 @@ export const DOMAINS: Domain[] = [
     blurb: "A host's home base — resources, live meetups, and the peer room of outstanding hosts.",
     tabs: [
       { slug: 'pulse', label: 'Pulse', blurb: 'Members, energy and what needs a host right now.' },
-      { slug: 'members', label: 'Members', blurb: 'The members: who, member since, last logged in, interactions.',
-        help: 'What it is: the list of QuinB Academy members. Name, email, member since, last logged in, number of interactions, notes.\n\nWhere it comes from: nothing yet. Once Mighty Networks can be read (the subscription with the API), the list fills itself. Until then rows are typed in by hand.\n\nHow we work with it: add a member with the row above the grid; type straight into the cells.' },
       { slug: 'programme', label: 'Programme', blurb: 'Courses, live meetups and the calendar ahead.' },
       { slug: 'team', label: 'Team', blurb: 'Hosts, moderators and who owns which space.' },
       { slug: 'revenue', label: 'Revenue', blurb: 'Subscriptions, churn and the money picture.' },
@@ -217,6 +215,22 @@ export const DOMAINS: Domain[] = [
   },
 
   // ------------------------------------------------------------------ Assets
+  {
+    slug: 'quinb-community',
+    label: 'QuinB Community',
+    group: 'Assets',
+    icon: 'academy',
+    accent: 'red',
+    blurb: 'Running the QuinB Academy community from the inside: members, content strategy, posts.',
+    tabs: [
+      { slug: 'members', label: 'Members', blurb: 'Who is inside the community, how long, and how active.',
+        help: 'What it is: the members of the QuinB Academy community. Name, email, member since, how long they have been inside, last visit, number of interactions, notes.\n\nWhere it comes from: the member export from Mighty Networks (Admin › Members › Member List › Download). No connected tool can read the QuinB network yet, so the export is loaded here by hand. Emails we already know from CRM › Emails are added where the name matches.\n\nHow we work with it: this is the management side of the community. Growing and marketing QuinB stays under Ventures › QuinB Academy.' },
+      { slug: 'strategy', label: 'Content strategy', blurb: 'What we post in the community, why, and in what rhythm.',
+        help: 'What it is: one page with the content strategy for the community. Every post on the Posts tab is written from it.\n\nHow we work with it: write it here; it saves when you click away. When the strategy changes, change it here first.' },
+      { slug: 'posts', label: 'Posts', blurb: 'The posts we pre-create, with their banners, until they are live.',
+        help: 'What it is: every post we plan for the community — title, the Space it goes to, the planned date, the banner, the text, and the status (Idea, Draft, Ready, Posted).\n\nHow we work with it: add a post with the row above the grid; the arrow opens it to write the text and upload the banner. "Copy text" puts the text on the clipboard to paste into Mighty Networks. Once it is live, paste the link to the post and set it to Posted.\n\nNot yet: posting straight into the community from here. That needs a connection to the QuinB network, which the app does not have.' },
+    ],
+  },
   {
     slug: 'book',
     label: 'The Book',

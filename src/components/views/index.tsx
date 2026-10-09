@@ -14,6 +14,7 @@ import { Dashboard, RoadmapBoard, Years, Quarters, Actions } from '@/components/
 import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
 import { About, Chapters } from '@/components/Book';
 import { Members } from '@/components/QuinbMembers';
+import { Strategy, Posts } from '@/components/QuinbContent';
 import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
@@ -33,7 +34,7 @@ export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: Vi
     case 'goal-navigator': return goalZone(domain, tab, b, view);
     case 'mailing': return mailingZone(domain, tab, b, view);
     case 'book': return bookZone(domain, tab, b, view);
-    case 'quinb-academy': return tab.slug === 'members' ? membersZone(domain, tab, b, view) : gridZone(domain, tab, b);
+    case 'quinb-community': return membersZone(domain, tab, b, view);
     default: return gridZone(domain, tab, b);
   }
 }
@@ -51,12 +52,14 @@ function bookZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNod
   );
 }
 
-/** QuinB Academy › Members: the list, typed by hand until Mighty Networks can be read. */
+/** QuinB Community › Members: loaded from the Mighty Networks export until the network can be read. */
 function membersZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
-  const store = `lifework.quinb.${tab.slug}.cols`;
+  const store = `lifework.quinb-community.${tab.slug}.cols`;
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
-      <Members rows={b.quinbMembers} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} />
+      {tab.slug === 'strategy' ? <Strategy strategy={b.quinbStrategy} />
+        : tab.slug === 'posts' ? <Posts rows={b.quinbPosts} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
+        : <Members rows={b.quinbMembers} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} />}
     </Portal>
   );
 }

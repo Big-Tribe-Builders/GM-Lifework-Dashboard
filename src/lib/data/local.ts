@@ -34,6 +34,8 @@ export type LocalFixture = {
   book?: unknown[];
   chapters?: unknown[];
   quinbMembers?: unknown[];
+  quinbStrategy?: unknown[];
+  quinbPosts?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;
