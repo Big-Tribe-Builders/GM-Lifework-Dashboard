@@ -8,7 +8,9 @@
 
    The whole thing rests on three rules:
 
-     1. Four colours, and no others. Everything else is neutral grey.
+     1. Four colours for the app's own chrome, and no others. Everything
+        else is neutral grey. What she colours herself (a list, a card, a
+        status) takes the palette of ten further down (10 Oct 2026).
      2. Colour is decoration, never meaning. It rotates so neighbours differ.
      3. Lines are visible. Structure you cannot see is not structure.
    ========================================================================== */
@@ -18,7 +20,8 @@
    -------------------------------------------------------------------------- */
 
 :root {
-  /* The four. Nothing else may be a hue. */
+  /* The four. Nothing else in the app's own chrome may be a hue. What she
+     colours herself (a list, a card, a status) takes the palette below. */
   --brand-violet: #543ff8;
   --brand-red: #ed1748;
   --brand-green: #20a375;
@@ -262,6 +265,36 @@ body {
 .accent-red    { --accent: var(--brand-red);    --accent-deep: var(--brand-red-deep); }
 .accent-green  { --accent: var(--brand-green);  --accent-deep: var(--brand-green-deep); }
 .accent-orange { --accent: var(--brand-orange); --accent-deep: var(--brand-orange-deep); }
+
+/* --------------------------------------------------------------------------
+   The palette (Giulia, 10 Oct 2026): ten colours for anything she colours
+   herself — lists, cards, statuses, lines on a plan. Soft, see-through tints
+   after Notion. src/lib/palette.ts holds the same list for the code.
+
+   Put .tint-<colour> on an element; it sets --tint (rgb channels) and
+   --tint-ink (text that reads 4.5:1 or better on the tint). Then pick the
+   strength with a role class:
+     .tinted       the background of a list, a fold, a card
+     .tint-tag     a label: stronger tint, coloured text
+     .tint-swatch  the colour itself, for a dot or a picker
+   -------------------------------------------------------------------------- */
+
+:root { --tint-bg: 0.16; --tint-tag: 0.30; }
+
+.tint-yellow      { --tint: 233 177 14;  --tint-ink: #846408; }
+.tint-orange      { --tint: 246 146 31;  --tint-ink: #955206; }
+.tint-red         { --tint: 237 23 72;   --tint-ink: #aa0d31; }
+.tint-pink        { --tint: 224 71 143;  --tint-ink: #ae1d61; }
+.tint-purple      { --tint: 139 79 216;  --tint-ink: #752ed0; }
+.tint-blue        { --tint: 47 128 237;  --tint-ink: #1059ba; }
+.tint-dark-green  { --tint: 23 128 91;   --tint-ink: #126649; }
+.tint-light-green { --tint: 118 192 67;  --tint-ink: #457226; }
+.tint-gray        { --tint: 139 146 156; --tint-ink: #5b626b; }
+.tint-brown       { --tint: 154 106 75;  --tint-ink: #78523a; }
+
+.tinted      { background: rgb(var(--tint) / var(--tint-bg)); }
+.tint-tag    { background: rgb(var(--tint) / var(--tint-tag)); color: var(--tint-ink); }
+.tint-swatch { background: rgb(var(--tint)); }
 
 /* The soft tinted square behind an icon. The signature element. */
 .icon-chip {

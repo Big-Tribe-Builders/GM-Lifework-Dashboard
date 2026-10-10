@@ -3,22 +3,27 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { YearGoal, QuarterGoal, ActionPoint, GoalStatus } from '@/lib/goals';
-import { VENTURES, GOAL_STATUS, GOAL_TONE, thisQuarter, progressOf } from '@/lib/goals';
+import { VENTURES, GOAL_STATUS, GOAL_TONE, thisQuarter, progressOf, nextQuarter, quarterMonths, quarterLabel, ownersOf } from '@/lib/goals';
 import type { ColumnSetting } from '@/lib/grid';
 import { updateGoal, addGoal, removeGoal, type GoalTable } from '@/app/d/goals/actions';
-import { saveGridColumn } from '@/app/d/actions';
+import { saveGridColumn, saveGroupColor } from '@/app/d/actions';
 import { Grid, type Column, type Group } from '@/components/Grid';
 import { EditableCell } from '@/components/EditableCell';
 import { ConfirmDialog } from '@/components/ClientTable';
 import { shortDate } from '@/lib/upwork';
+import type { PaletteKey } from '@/lib/palette';
+import { Gallery, AddCard, Avatars, type GalleryList } from '@/components/Gallery';
+import { ColorPicker } from '@/components/ColorPicker';
+import { Field, CloseLink, usePanelKeys } from '@/components/panel';
+import { Sel, Remove as RemoveButton } from '@/components/rowkit';
 
 /**
  * The Goal Navigator, after her Notion page.
  *
  *   Dashboard       this quarter: goals with progress, action points this week
  *   Roadmap         the board — ventures down, quarters across, goals as cards
- *   Yearly goals    grid folded by year
- *   Quarterly goals grid folded by quarter
+ *   Yearly goals    gallery (one list per year, after Trello) or grid folded by year
+ *   Quarterly goals gallery (one list per quarter) or grid folded by quarter
  *   Action points   grid folded by quarter
  *
  * Every row has a venture, so one board holds all three businesses. Each
@@ -29,6 +34,14 @@ const VENTURE_LANE: Record<string, number> = { 'Big Tribe Builders': 0, 'QuinB A
 const lane = (v: string) => `lane--${VENTURE_LANE[v] ?? 9}`;
 
 type Common = { settings?: Record<string, ColumnSetting>; accent?: string; store: string };
+/** The colours she gave the groups, and the collection they are saved under. */
+type Colors = { colors?: Record<string, PaletteKey>; grid?: string };
+
+/** The tint and the colour dot of a fold, when the tab keeps colours. */
+const foldColor = (c: Colors, key: string, title: string) => (c.grid ? {
+  tint: c.colors?.[key] ?? null,
+  tools: <ColorPicker value={c.colors?.[key] ?? null} label={`Colour of ${title}`} onPick={(v) => saveGroupColor(c.grid!, key, v)} />,
+} : {});
 
 // ------------------------------------------------------------------ cells
 
@@ -111,7 +124,7 @@ const grid = <T,>(props: Common & { columns: Column<T>[]; rows?: T[]; groups?: G
 
 // ----------------------------------------------------------------- years
 
-export function Years({ rows, ...c }: Common & { rows: YearGoal[] }) {
+export function Years({ rows, colors, grid: colorGrid, ...c }: Common & Colors & { rows: YearGoal[] }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const t = text('goal_years');
   const columns: Column<YearGoal>[] = [
@@ -123,7 +136,7 @@ export function Years({ rows, ...c }: Common & { rows: YearGoal[] }) {
   ];
   const years = [...new Set(rows.map((r) => r.year))].sort();
   const groups: Group<YearGoal>[] = years.map((y) => ({
-    key: String(y), tone: 'grey', head: <span className="grid2__foldname">{y}</span>,
+    key: String(y), tone: 'grey', head: <span className="grid2__foldname">{y}</span>, ...foldColor({ colors, grid: colorGrid }, String(y), String(y)),
     rows: rows.filter((r) => r.year === y).sort((a, b) => a.sortOrder - b.sortOrder || a.venture.localeCompare(b.venture)),
     open: !closed[y], onToggle: () => setClosed((x) => ({ ...x, [y]: !x[y] })),
   }));
@@ -139,7 +152,7 @@ export function Years({ rows, ...c }: Common & { rows: YearGoal[] }) {
 
 // -------------------------------------------------------------- quarters
 
-export function Quarters({ rows, years, actions, ...c }: Common & { rows: QuarterGoal[]; years: YearGoal[]; actions: ActionPoint[] }) {
+export function Quarters({ rows, years, actions, colors, grid: colorGrid, ...c }: Common & Colors & { rows: QuarterGoal[]; years: YearGoal[]; actions: ActionPoint[] }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const t = text('goal_quarters');
   const yearOpts = (venture: string) => [{ value: '', label: '—' }, ...years.filter((y) => y.venture === venture).map((y) => ({ value: y.id, label: `${y.year} · ${y.title}` }))];
@@ -154,7 +167,7 @@ export function Quarters({ rows, years, actions, ...c }: Common & { rows: Quarte
   ];
   const quarters = [...new Set(rows.map((r) => r.quarter))].sort();
   const groups: Group<QuarterGoal>[] = quarters.map((q) => ({
-    key: q, tone: 'grey', head: <span className="grid2__foldname">{q}</span>,
+    key: q, tone: 'grey', head: <span className="grid2__foldname">{q}</span>, ...foldColor({ colors, grid: colorGrid }, q, quarterLabel(q)),
     rows: rows.filter((r) => r.quarter === q).sort((a, b) => a.venture.localeCompare(b.venture) || a.sortOrder - b.sortOrder),
     open: !closed[q], onToggle: () => setClosed((x) => ({ ...x, [q]: !x[q] })),
   }));
@@ -165,6 +178,197 @@ export function Quarters({ rows, years, actions, ...c }: Common & { rows: Quarte
       ]} />
       {grid({ ...c, columns, ...(rows.length ? { groups } : {}), rowKey: (r: QuarterGoal) => r.id, empty: 'No quarterly goals yet. Add the first one above.' })}
     </>
+  );
+}
+
+// --------------------------------------------------------------- gallery
+
+/** Where a card's panel opens: the same place, with ?peek=. */
+const peekHref = (here: string, id: string) => `${here}${here.includes('?') ? '&' : '?'}peek=${id}`;
+const todayUtc = () => new Date().toISOString().slice(0, 10);
+const isOpen = (a: ActionPoint) => a.status !== 'done' && a.status !== 'parked';
+
+/** The two labels on top of every goal card, after Trello: the venture and the status. */
+function Labels({ venture, status }: { venture: string; status: GoalStatus }) {
+  return (
+    <span className="gcard__labels">
+      <span className={`gcard__venture ${lane(venture)}`}>{venture}</span>
+      <span className={`status status--${GOAL_TONE[status]}`}>{GOAL_STATUS[status]}</span>
+    </span>
+  );
+}
+
+const Icon = {
+  goals: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6" /><circle cx="8" cy="8" r="2.5" /></svg>,
+  done: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" /><path d="m5.5 8 2 2 3-4" /></svg>,
+  clock: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6" /><path d="M8 5v3l2 1.5" /></svg>,
+  notes: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h6" /></svg>,
+};
+
+/** Yearly goals as Trello lists: one per year, this year and next always there. */
+export function YearsGallery({ rows, quarters, actions, colors, grid, here, peek }: {
+  rows: YearGoal[]; quarters: QuarterGoal[]; actions: ActionPoint[];
+  colors: Record<string, PaletteKey>; grid: string; here: string; peek?: string;
+}) {
+  const now = new Date().getUTCFullYear();
+  const years = [...new Set([...rows.map((r) => r.year), now, now + 1])].sort((a, b) => a - b);
+  const lists: GalleryList<YearGoal>[] = years.map((y) => ({
+    key: String(y), title: String(y), now: y === now,
+    items: rows.filter((r) => r.year === y).sort((a, b) => a.sortOrder - b.sortOrder || a.venture.localeCompare(b.venture)),
+    add: <AddCard label="+ Add a goal" placeholder={`A goal for ${y}`} choice={{ label: 'Venture', options: ventureOpts }}
+      onAdd={(title, venture) => addGoal('goal_years', { year: String(y), venture, title })} />,
+  }));
+  const open = peek ? rows.find((r) => r.id === peek) ?? null : null;
+  return (
+    <>
+      <Gallery grid={grid} lists={lists} colors={colors} label="Yearly goals" itemKey={(r) => r.id}
+        href={(r) => peekHref(here, r.id)} card={(r) => {
+          const qs = quarters.filter((q) => q.yearGoalId === r.id);
+          const ids = new Set(qs.map((q) => q.id));
+          const acts = actions.filter((a) => a.quarterGoalId && ids.has(a.quarterGoalId));
+          const done = acts.filter((a) => a.status === 'done').length;
+          return (
+            <>
+              <Labels venture={r.venture} status={r.status} />
+              <span className="gcard__title">{r.title}</span>
+              {qs.length ? (
+                <span className="gcard__foot">
+                  <span className="gcard__badge" title="Quarterly goals">{Icon.goals}<span aria-hidden="true">{qs.length}</span><span className="sr-only">{qs.length} quarterly goal{qs.length === 1 ? '' : 's'}</span></span>
+                  {acts.length ? <span className="gcard__badge" title="Action points done">{Icon.done}<span aria-hidden="true">{done}/{acts.length}</span><span className="sr-only">{done} of {acts.length} action points done</span></span> : null}
+                  {r.notes?.trim() ? <span className="gcard__badge" title="Has notes">{Icon.notes}<span className="sr-only">has notes</span></span> : null}
+                  <span className="gcard__spacer" />
+                  <Avatars names={ownersOf(acts)} />
+                </span>
+              ) : <span className="gcard__none">No quarterly goals yet</span>}
+            </>
+          );
+        }} />
+      {open ? <GoalPanel key={open.id} kind="year" goal={open} quarters={quarters} actions={actions} years={[]} closeHref={here} /> : null}
+    </>
+  );
+}
+
+/** Quarterly goals as Trello lists: one per quarter, this quarter and the next always there. */
+export function QuartersGallery({ rows, years, actions, colors, grid, here, peek }: {
+  rows: QuarterGoal[]; years: YearGoal[]; actions: ActionPoint[];
+  colors: Record<string, PaletteKey>; grid: string; here: string; peek?: string;
+}) {
+  const now = thisQuarter();
+  const today = todayUtc();
+  const qs = [...new Set([...rows.map((r) => r.quarter), now, nextQuarter(now)])].sort();
+  const lists: GalleryList<QuarterGoal>[] = qs.map((q) => ({
+    key: q, title: quarterLabel(q), sub: quarterMonths(q), now: q === now,
+    items: rows.filter((r) => r.quarter === q).sort((a, b) => a.venture.localeCompare(b.venture) || a.sortOrder - b.sortOrder),
+    add: /^\d{4}-Q[1-4]$/.test(q) ? (
+      <AddCard label="+ Add a goal" placeholder={`A goal for ${quarterLabel(q)}`} choice={{ label: 'Venture', options: ventureOpts }}
+        onAdd={(title, venture) => addGoal('goal_quarters', { quarter: q, venture, title })} />
+    ) : undefined,
+  }));
+  const open = peek ? rows.find((r) => r.id === peek) ?? null : null;
+  return (
+    <>
+      <Gallery grid={grid} lists={lists} colors={colors} label="Quarterly goals" itemKey={(r) => r.id}
+        href={(r) => peekHref(here, r.id)} card={(r) => {
+          const acts = actions.filter((a) => a.quarterGoalId === r.id);
+          const done = acts.filter((a) => a.status === 'done').length;
+          const next = acts.filter(isOpen).map((a) => a.dueDate ?? a.doDate).filter((d): d is string => !!d).sort()[0];
+          const late = !!next && next < today;
+          return (
+            <>
+              <Labels venture={r.venture} status={r.status} />
+              <span className="gcard__title">{r.title}</span>
+              {acts.length ? <span className="gcard__bar" aria-hidden="true"><span style={{ width: `${(done / acts.length) * 100}%` }} /></span> : null}
+              <span className="gcard__foot">
+                {acts.length ? <span className="gcard__badge" title="Action points done">{Icon.done}<span aria-hidden="true">{done}/{acts.length}</span><span className="sr-only">{done} of {acts.length} action points done</span></span> : <span className="gcard__none">No action points yet</span>}
+                {next ? <span className={`gcard__badge${late ? ' gcard__badge--late' : ''}`} title={late ? 'Overdue: the first open date' : 'The first open date'}>{Icon.clock}<span className="sr-only">{late ? 'overdue since' : 'next date'}</span>{shortDate(next)}</span> : null}
+                {r.notes?.trim() ? <span className="gcard__badge" title="Has notes">{Icon.notes}<span className="sr-only">has notes</span></span> : null}
+                <span className="gcard__spacer" />
+                <Avatars names={ownersOf(acts)} />
+              </span>
+            </>
+          );
+        }} />
+      {open ? <GoalPanel key={open.id} kind="quarter" goal={open} years={years} quarters={[]} actions={actions} closeHref={here} /> : null}
+    </>
+  );
+}
+
+/**
+ * One goal, opened from its card: the same fields as the table, and what
+ * hangs under it — the quarterly goals of a year, the action points of a
+ * quarter. Fields save when she clicks away.
+ */
+function GoalPanel({ kind, goal, years, quarters, actions, closeHref }: {
+  kind: 'year' | 'quarter'; goal: YearGoal | QuarterGoal; years: YearGoal[]; quarters: QuarterGoal[]; actions: ActionPoint[]; closeHref: string;
+}) {
+  usePanelKeys(closeHref);
+  const table: GoalTable = kind === 'year' ? 'goal_years' : 'goal_quarters';
+  const save = (field: string) => (v: string) => updateGoal(table, goal.id, field, v);
+  const y = kind === 'year' ? (goal as YearGoal) : null;
+  const q = kind === 'quarter' ? (goal as QuarterGoal) : null;
+  const children = y ? quarters.filter((x) => x.yearGoalId === y.id).sort((a, b) => a.quarter.localeCompare(b.quarter) || a.sortOrder - b.sortOrder) : [];
+  const steps = q ? actions.filter((a) => a.quarterGoalId === q.id).sort((a, b) => a.sortOrder - b.sortOrder) : [];
+  const yearOpts = q ? [{ value: '', label: '—' }, ...years.filter((x) => x.venture === q.venture).map((x) => ({ value: x.id, label: `${x.year} · ${x.title}` }))] : [];
+  return (
+    <aside className="peek goalpanel" role="dialog" aria-label={goal.title}>
+      <div className="peek__bar">
+        <CloseLink href={closeHref} />
+        <span className="peek__title">{goal.title}</span>
+        <Sel value={goal.status} options={statusOptions} className={`status status--${GOAL_TONE[goal.status]} status--select`} label="Status" onChange={save('status')} />
+        <RemoveButton what={goal.title} body={kind === 'year' ? 'It cannot be undone. Its quarterly goals stay, without a yearly goal.' : 'It cannot be undone. Its action points stay, without a quarterly goal.'}
+          onRemove={() => removeGoal(table, goal.id)} />
+      </div>
+      <div className="peek__body goalpanel__body">
+        <Field label="Goal" value={goal.title} onSave={save('title')} />
+        <div className="goalpanel__row">
+          <label className="pfield">
+            <span className="pfield__label">Venture</span>
+            <Sel value={goal.venture} options={ventureOpts} label="Venture" onChange={save('venture')} />
+          </label>
+          {y ? <Field label="Year" value={String(y.year)} onSave={save('year')} /> : null}
+          {q ? <Field label="Quarter" value={q.quarter} placeholder="2026-Q4" onSave={save('quarter')} /> : null}
+        </div>
+        {q ? (
+          <label className="pfield">
+            <span className="pfield__label">Yearly goal</span>
+            <Sel value={q.yearGoalId} options={yearOpts} label="Yearly goal" onChange={save('yearGoalId')} />
+          </label>
+        ) : null}
+        <Field label="Notes" multiline rows={5} value={goal.notes} onSave={save('notes')} />
+        {y ? (
+          <section className="goalpanel__list">
+            <h3 className="pfield__label">Quarterly goals · {children.length}</h3>
+            {children.length ? (
+              <ul>
+                {children.map((x) => (
+                  <li key={x.id}>
+                    <span className="goalpanel__when">{quarterLabel(x.quarter)}</span>
+                    <Link href={`/d/goal-navigator/quarters?peek=${x.id}`} className="goalpanel__link">{x.title}</Link>
+                    <span className={`status status--${GOAL_TONE[x.status]}`}>{GOAL_STATUS[x.status]}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="muted goalpanel__empty">None yet. A quarterly goal is linked to this one from its own card or the Quarterly goals table.</p>}
+          </section>
+        ) : null}
+        {q ? (
+          <section className="goalpanel__list">
+            <h3 className="pfield__label">Action points · {steps.filter((a) => a.status === 'done').length} of {steps.length} done</h3>
+            {steps.length ? (
+              <ul>
+                {steps.map((a) => (
+                  <li key={a.id}>
+                    <span className={`status status--${GOAL_TONE[a.status]}`}>{GOAL_STATUS[a.status]}</span>
+                    <span className="goalpanel__text">{a.title}</span>
+                    <span className="goalpanel__when">{[a.owner, shortDate(a.dueDate ?? a.doDate)].filter((x) => x && x !== '—').join(' · ')}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="muted goalpanel__empty">None yet. Action points are added on the Action points tab.</p>}
+          </section>
+        ) : null}
+      </div>
+    </aside>
   );
 }
 

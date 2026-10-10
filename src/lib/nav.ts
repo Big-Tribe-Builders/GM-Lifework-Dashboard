@@ -13,6 +13,8 @@
  * palette (cmd-K) or the pin rail.
  */
 
+import type { ViewMode } from '@/lib/grid';
+
 export type IconName =
   | 'home' | 'tribe' | 'academy' | 'star' | 'users' | 'briefcase'
   | 'rocket' | 'megaphone' | 'brain' | 'book' | 'heart' | 'coins'
@@ -26,7 +28,16 @@ export type Tab = {
   /** The longer explanation behind the (i) button: what this is, where it
       came from, how to work with it. Paragraphs separated by blank lines. */
   help?: string;
+  /** The ways this tab can be drawn, when more than one. The first is where
+      it opens; the switch on the right of the toolbar changes it (?view=). */
+  views?: ViewMode[];
 };
+
+/** The view a tab is drawn in: the one asked for if the tab offers it, else its first. */
+export function viewOf(tab: Tab, asked: string | null | undefined): ViewMode {
+  const offered = tab.views ?? ['table'];
+  return (offered as string[]).includes(asked ?? '') ? (asked as ViewMode) : offered[0];
+}
 
 export type Domain = {
   slug: string;
@@ -109,10 +120,10 @@ export const DOMAINS: Domain[] = [
         help: 'What it is: one screen for the quarter we are in. Each quarterly goal with how far it is (the share of its action points that are done), then the action points due or planned in the next seven days, and anything overdue.\n\nHow we work with it: open it first. Everything on it is a line from the other tabs; change it there.' },
       { slug: 'roadmap', label: 'Roadmap', blurb: 'The years and their quarters on one board.',
         help: 'What it is: the board from your Notion Goal Navigator. One row per venture, one column per quarter, the quarterly goals as cards. Pick the year at the top.\n\nHow we work with it: this is the long view. A goal is added on the Quarterly goals tab and appears here in its quarter.' },
-      { slug: 'years', label: 'Yearly goals', blurb: 'What each year is for, per venture.',
-        help: 'What it is: the yearly goals, grouped by year. Each has a venture (Big Tribe Builders, QuinB Academy, Giulia May), a title, a status and notes.\n\nHow we work with it: a few lines per year, not many. Quarterly goals hang under these.' },
-      { slug: 'quarters', label: 'Quarterly goals', blurb: 'What each quarter must achieve, under its yearly goal.',
-        help: 'What it is: the quarterly goals, grouped by quarter. Each belongs to a venture and, if you want, to a yearly goal. Status: To do, Doing, Done, Parked.\n\nHow we work with it: at the start of a quarter, write the two to five things it must achieve. Action points hang under these.' },
+      { slug: 'years', label: 'Yearly goals', blurb: 'What each year is for, per venture.', views: ['gallery', 'table'],
+        help: 'What it is: the yearly goals, one list per year. Each has a venture (Big Tribe Builders, QuinB Academy, Giulia May), a title, a status and notes. A card shows its quarterly goals, how many action points are done, and who works on them.\n\nGallery and table: the switch on the right of this bar. The gallery is the Trello view, one list per year; the table is the same goals in rows. The coloured dot in a list\u2019s header gives that year a colour from the palette, in both views.\n\nHow we work with it: a few goals per year, not many. Click a card to open it; "+ Add a goal" at the bottom of a list adds one to that year. Quarterly goals hang under these.' },
+      { slug: 'quarters', label: 'Quarterly goals', blurb: 'What each quarter must achieve, under its yearly goal.', views: ['gallery', 'table'],
+        help: 'What it is: the quarterly goals, one list per quarter. Each belongs to a venture and, if you want, to a yearly goal. Status: To do, Doing, Done, Parked. A card shows how many of its action points are done, the first date coming up, and who works on it.\n\nGallery and table: the switch on the right of this bar. The gallery is the Trello view, one list per quarter, with the quarter we are in marked Now; the table is the same goals in rows. The coloured dot in a list\u2019s header gives that quarter a colour from the palette, in both views.\n\nHow we work with it: at the start of a quarter, write the two to five things it must achieve. Click a card to open it. Action points hang under these.' },
       { slug: 'actions', label: 'Action points', blurb: 'The concrete steps, with who, when and status.',
         help: 'What it is: the actionable steps, grouped by quarter. Each belongs to a venture and a quarterly goal, has an owner, a status, a do date and a due date, a priority and notes.\n\nHow we work with it: this is the working list. Add steps with the row above the grid; type straight into the cells; tick Done. The Dashboard reads from here.' },
     ],

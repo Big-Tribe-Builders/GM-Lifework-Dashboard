@@ -58,3 +58,34 @@ export function progressOf(goal: QuarterGoal, actions: ActionPoint[]): number | 
   if (!mine.length) return null;
   return mine.filter((a) => a.status === 'done').length / mine.length;
 }
+
+/** The quarter after this one: '2026-Q4' → '2027-Q1'. */
+export function nextQuarter(q: string): string {
+  const y = Number(q.slice(0, 4)); const n = Number(q.slice(6));
+  return n >= 4 ? `${y + 1}-Q1` : `${y}-Q${n + 1}`;
+}
+
+/** The months of a quarter: '2026-Q4' → 'Oct – Dec'. */
+export function quarterMonths(q: string): string {
+  const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const n = Number(q.slice(6));
+  return n >= 1 && n <= 4 ? `${M[(n - 1) * 3]} – ${M[(n - 1) * 3 + 2]}` : '';
+}
+
+/** '2026-Q4' → 'Q4 2026', the way it is said. */
+export const quarterLabel = (q: string) => (/^\d{4}-Q[1-4]$/.test(q) ? `${q.slice(5)} ${q.slice(0, 4)}` : q);
+
+/**
+ * The people on a run of action points, from the "Who" field as she writes
+ * it: "Giulia & Marty" is two people. Each name once, as first written.
+ */
+export function ownersOf(actions: ActionPoint[]): string[] {
+  const seen = new Map<string, string>();
+  for (const a of actions) {
+    for (const part of (a.owner ?? '').split(/\s*(?:&|,|\+|\/|\band\b)\s*/i)) {
+      const n = part.trim();
+      if (n && !seen.has(n.toLowerCase())) seen.set(n.toLowerCase(), n);
+    }
+  }
+  return [...seen.values()];
+}

@@ -39,6 +39,7 @@ export type LocalFixture = {
   quinbWeeks?: unknown[];
   quinbPostTypes?: unknown[];
   quinbPosts?: unknown[];
+  viewGroups?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;

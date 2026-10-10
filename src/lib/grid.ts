@@ -7,6 +7,8 @@
  * every browser.
  */
 
+import type { ViewGroup } from '@/lib/palette';
+
 export type FieldType = 'text' | 'number' | 'currency' | 'date' | 'select' | 'link' | 'check';
 
 export const FIELD_TYPES: FieldType[] = ['text', 'number', 'currency', 'date', 'select', 'link', 'check'];
@@ -45,4 +47,13 @@ export type ViewOpts = {
   peek?: string;
   /** Every column rename and glyph, for every grid. */
   columns?: ColumnSetting[];
+  /** Table or gallery, for a tab that offers both (?view=). */
+  mode?: ViewMode;
+  /** Every colour she gave a group (a list, a fold), for every collection. */
+  groupColors?: ViewGroup[];
 };
+
+/** How a tab can draw its rows. The first a tab lists is where it opens. */
+export type ViewMode = 'table' | 'gallery';
+export const VIEW_MODES: ViewMode[] = ['table', 'gallery'];
+export const VIEW_LABEL: Record<ViewMode, string> = { table: 'Table', gallery: 'Gallery' };

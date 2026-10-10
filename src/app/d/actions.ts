@@ -5,6 +5,7 @@ import { getSupabase } from '@/lib/supabase';
 import { ICON_CHOICES, ACCENT_CHOICES, GROUP_ORDER, resolveNav, overrideMap } from '@/lib/nav';
 import { getDomainSettings, getCollectionOrder } from '@/lib/data';
 import { FIELD_TYPES } from '@/lib/grid';
+import { isPaletteKey } from '@/lib/palette';
 
 /**
  * Rename or recolour a domain.
@@ -33,6 +34,28 @@ export async function saveDomainSettings(
 
   // The name and colour are in the rail and the chrome, which every page
   // draws, so the whole layout is revalidated rather than one route.
+  revalidatePath('/', 'layout');
+  return { error: null };
+}
+
+/**
+ * Give a group a colour from the palette — a list in a gallery, a fold in a
+ * table — or take it away with ''. Keyed by the collection and the group, so
+ * the same year can be red in one tab and blue in another.
+ */
+export async function saveGroupColor(grid: string, groupKey: string, color: string): Promise<{ error: string | null }> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured, so there is nowhere to save this.' };
+  if (!/^[a-z0-9][a-z0-9/_.-]{0,99}$/.test(grid)) return { error: 'Unknown collection.' };
+  const key = groupKey.trim();
+  if (!key || key.length > 60) return { error: 'Unknown group.' };
+  if (color && !isPaletteKey(color)) return { error: 'That is not one of the ten colours.' };
+
+  const { error } = color
+    ? await db.from('view_groups').upsert({ grid, group_key: key, color, updated_at: new Date().toISOString() })
+    : await db.from('view_groups').delete().eq('grid', grid).eq('group_key', key);
+  if (error) return { error: error.message };
+
   revalidatePath('/', 'layout');
   return { error: null };
 }

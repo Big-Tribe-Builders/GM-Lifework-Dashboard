@@ -2116,6 +2116,120 @@ main.portal {
 .see__head { margin-top: 8px; }
 .see__frame { display: block; width: 100%; min-height: 520px; margin-top: 10px; border: 1px solid var(--hairline); border-radius: 6px; background: #f6f6f7; }
 
+/* ------------------------------------------------------------------------
+   Views. A tab that offers more than one way to draw its rows (nav.ts,
+   `views`) gets the switch on the right of the toolbar. Table · Gallery.
+   ------------------------------------------------------------------------ */
+.viewswitch { display: inline-flex; flex: none; margin-left: 8px; border: 1px solid var(--hairline); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.viewswitch__btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; font-size: 13px; color: var(--ink-soft); text-decoration: none; white-space: nowrap; }
+.viewswitch__btn + .viewswitch__btn { border-left: 1px solid var(--hairline); }
+.viewswitch__btn svg { width: 14px; height: 14px; flex: none; }
+.viewswitch__btn:hover { background: var(--grey-100); color: var(--ink); }
+.viewswitch__btn--on, .viewswitch__btn--on:hover { background: color-mix(in srgb, var(--accent, var(--brand-violet)) 12%, white); color: var(--ink); font-weight: 600; }
+.viewswitch__btn--on svg { color: var(--accent-deep, var(--brand-violet-deep)); }
+.viewswitch__btn:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: -2px; }
+/* On a phone the switch keeps its two glyphs and drops the words. */
+@media (max-width: 640px) { .viewswitch__label { display: none; } .viewswitch__btn { padding: 0 9px; } }
+
+/* ------------------------------------------------------------------------
+   The gallery, after Trello (Giulia, 10 Oct 2026). One list per group, side
+   by side; cards stacked in each. Grey lists unless she gives one a colour
+   from the palette (studiolo-theme.css). See src/components/Gallery.tsx.
+   ------------------------------------------------------------------------ */
+.gallery { display: flex; align-items: flex-start; gap: 12px; padding: 16px; overflow-x: auto; min-height: 420px; }
+.glist { flex: 0 0 300px; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 14px; background: #e9ecf0; }
+.glist.tinted { background: rgb(var(--tint) / var(--tint-bg)); }
+.glist.tinted .glist__title { color: var(--tint-ink); }
+.glist__head { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 2px 2px 0 6px; }
+.glist__title { margin: 0; font-size: 15px; font-weight: 700; color: var(--ink); }
+.glist__count, .glist__sub { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.glist.tinted .glist__count, .glist.tinted .glist__sub { color: var(--tint-ink); }
+.glist__now { padding: 1px 8px; border-radius: 9999px; background: var(--accent-deep, var(--brand-violet-deep)); color: #fff; font-size: 11px; font-weight: 700; }
+.glist__spacer { flex: 1; }
+.glist__cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.glist__add { display: block; width: 100%; padding: 8px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.glist__add:hover { background: rgb(20 22 28 / 0.07); color: var(--ink); }
+.glist__add:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: -2px; }
+.glist__form { display: flex; flex-direction: column; gap: 8px; }
+.glist__form textarea, .glist__form select { width: 100%; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 8px; font: inherit; font-size: 14px; background: #fff; color: var(--ink); }
+.glist__form textarea { resize: vertical; line-height: 1.4; }
+.glist__formrow { display: flex; gap: 8px; }
+
+.gcard { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; box-shadow: 0 1px 0 rgb(20 22 28 / 0.16); border: 1px solid transparent; }
+.gcard:hover { box-shadow: var(--shadow-hover); border-color: var(--hairline); }
+.gcard:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.gcard__labels { display: flex; flex-wrap: wrap; gap: 6px; }
+.gcard__labels .status { font-size: 11px; padding: 1px 7px; }
+.gcard__venture { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; line-height: 1.5; background: var(--lane, #64748b); color: #fff; }
+.gcard__venture.lane--0 { background: color-mix(in srgb, var(--lane) 88%, black); color: #fff; }
+.gcard__venture.lane--1 { color: #3d2600; }
+.gcard__venture.lane--2 { color: #03291c; }
+.gcard__title { font-size: 15px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.gcard__bar { display: block; height: 4px; border-radius: 9999px; background: var(--grey-100); overflow: hidden; }
+.gcard__bar > span { display: block; height: 100%; background: var(--brand-green); }
+.gcard__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 24px; font-size: 12px; color: #556376; }
+.gcard__badge { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.gcard__badge svg { width: 14px; height: 14px; flex: none; }
+.gcard__badge--late { color: var(--brand-red-deep); font-weight: 600; }
+.gcard__none { font-size: 12px; color: var(--muted); }
+.gcard__spacer { flex: 1; }
+
+.avatars { display: inline-flex; align-items: center; }
+.avatar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); font-size: 11px; font-weight: 700; flex: none; }
+.avatar + .avatar { margin-left: -8px; }
+.avatar--more { background: var(--grey-100); color: var(--muted); }
+
+/* The colour dot: a list's header, a fold's row. Opens the ten colours. */
+.colorpick { position: relative; display: inline-flex; flex: none; }
+.colorpick__btn { display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.colorpick__btn:hover { background: rgb(20 22 28 / 0.08); }
+.colorpick__btn:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 0; }
+.colorpick__dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgb(20 22 28 / 0.18); flex: none; }
+.colorpick__dot--none { background: linear-gradient(135deg, transparent 44%, #94a3b8 44%, #94a3b8 56%, transparent 56%), #fff; }
+.colorpick__menu { position: fixed; z-index: 90; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; width: 260px; padding: 6px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface); box-shadow: 0 12px 32px -12px rgb(20 22 28 / 0.35); }
+.colorpick__opt { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.colorpick__opt:first-child { grid-column: 1 / -1; }
+.colorpick__opt:hover, .colorpick__opt[aria-pressed="true"] { background: var(--grey-100); }
+.colorpick__opt:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: -2px; }
+.colorpick__opt[aria-pressed="true"] { font-weight: 600; }
+.colorpick__error { position: fixed; z-index: 90; display: flex; align-items: flex-start; gap: 8px; width: max-content; max-width: 280px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface); box-shadow: 0 12px 32px -12px rgb(20 22 28 / 0.35); font-size: 12px; line-height: 1.4; color: var(--brand-red-deep); }
+.colorpick__x { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.colorpick__x:hover { background: var(--grey-100); color: var(--ink); }
+
+/* A fold in a table with a colour and a dot. */
+/* The dot sits right after the count, where the eye already is; a wide
+   table would push a dot at the far edge out of sight. The name and the
+   dot stay in view when the table scrolls sideways; the rest of the row
+   still opens and closes the fold. */
+.grid2__fold td { overflow: visible; }
+.grid2__foldrow { display: flex; align-items: center; width: 100%; cursor: pointer; }
+.grid2__foldlead { position: sticky; left: 0; display: flex; align-items: center; width: max-content; }
+.grid2__foldlead > .grid2__foldbtn { flex: none; width: auto; padding-right: 4px; }
+.grid2__foldtools { display: inline-flex; align-items: center; padding: 0 8px 0 2px; cursor: default; }
+.grid2__fold.tinted { background: transparent; }
+.grid2__fold.tinted td { background: rgb(var(--tint) / var(--tint-bg)); }
+
+/* One goal, opened from its card. */
+.goalpanel .peek__bar { gap: 8px; }
+.goalpanel__body { display: flex; flex-direction: column; gap: 14px; }
+.goalpanel__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.goalpanel .pfield .cell { height: 34px; }
+.goalpanel .pfield .cell { display: flex; align-items: center; }
+.goalpanel .pfield select { width: 100%; height: 100%; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); }
+.goalpanel__list h3 { margin: 0; }
+.goalpanel__list ul { list-style: none; margin: 6px 0 0; padding: 0; border: 1px solid var(--grid-line); border-radius: 8px; overflow: hidden; }
+.goalpanel__list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid var(--grid-line); font-size: 13px; }
+.goalpanel__list li:first-child { border-top: 0; }
+.goalpanel__text, .goalpanel__link { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.goalpanel__link { color: var(--ink); text-decoration: none; font-weight: 500; }
+.goalpanel__link:hover { text-decoration: underline; }
+.goalpanel__when { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.goalpanel__empty { margin: 6px 0 0; font-size: 13px; }
+@media (max-width: 640px) { .goalpanel { width: 100vw; } .goalpanel__row { grid-template-columns: 1fr; } .glist { flex-basis: 272px; } }
+
+/* Text for screen readers only. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so
    on — never the darker tab strip. Outside a zone it stays violet. */

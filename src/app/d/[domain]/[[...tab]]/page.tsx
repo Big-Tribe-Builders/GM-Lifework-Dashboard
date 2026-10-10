@@ -3,10 +3,10 @@ import { notFound } from 'next/navigation';
 // Read on every request. The client table writes, and a page built once at
 // deploy time would keep showing the row where it used to be.
 export const dynamic = 'force-dynamic';
-import { DOMAIN_BY_SLUG, findTab, withOverride, overrideMap } from '@/lib/nav';
+import { DOMAIN_BY_SLUG, findTab, withOverride, overrideMap, viewOf } from '@/lib/nav';
 import { renderZone } from '@/components/views';
 import { loadAll } from '@/lib/data/bundle';
-import { getDomainSettings, getGridColumns } from '@/lib/data';
+import { getDomainSettings, getGridColumns, getViewGroups } from '@/lib/data';
 
 export async function generateMetadata({ params }: { params: Promise<{ domain: string; tab?: string[] }> }) {
   const { domain: slug, tab } = await params;
@@ -27,18 +27,18 @@ export default async function DomainPage({
   params, searchParams,
 }: {
   params: Promise<{ domain: string; tab?: string[] }>;
-  searchParams: Promise<{ q?: string; peek?: string }>;
+  searchParams: Promise<{ q?: string; peek?: string; view?: string }>;
 }) {
   const { domain: slug, tab } = await params;
-  const { q = '', peek } = await searchParams;
+  const { q = '', peek, view } = await searchParams;
   const base = DOMAIN_BY_SLUG.get(slug);
   if (!base) notFound();
 
   // An unknown tab falls back to the first one rather than 404ing — a stale
   // bookmark should land you somewhere useful, not on an error.
   const active = findTab(base, tab?.[0]);
-  const [bundle, { rows: settings }, { rows: columns }] = await Promise.all([
-    loadAll(), getDomainSettings(), getGridColumns(),
+  const [bundle, { rows: settings }, { rows: columns }, { rows: groupColors }] = await Promise.all([
+    loadAll(), getDomainSettings(), getGridColumns(), getViewGroups(),
   ]);
   // A recolour has to reach the zone as well, or the widgets inside it would
   // keep the old accent while the chrome around them changed.
@@ -49,7 +49,7 @@ export default async function DomainPage({
     // dialogs) takes the same colour as the top bar of the header.
     // display: contents keeps the page layout exactly as it was.
     <div className={`accent-${domain.accent}`} style={{ display: 'contents' }}>
-      {renderZone(domain, active, bundle, q, { peek, columns })}
+      {renderZone(domain, active, bundle, q, { peek, columns, mode: viewOf(active, view), groupColors })}
     </div>
   );
 }

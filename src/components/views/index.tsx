@@ -10,7 +10,8 @@ import { clientsZone } from '@/components/views/clients';
 import { upworkZone } from '@/components/views/upwork';
 import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
 import { Pulse } from '@/components/Pulse';
-import { Dashboard, RoadmapBoard, Years, Quarters, Actions } from '@/components/GoalNav';
+import { Dashboard, RoadmapBoard, Years, Quarters, Actions, YearsGallery, QuartersGallery } from '@/components/GoalNav';
+import { colorsFor } from '@/lib/palette';
 import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
 import { About, Chapters } from '@/components/Book';
 import { Members } from '@/components/QuinbMembers';
@@ -107,11 +108,22 @@ function mailingZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): React
 function goalZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
   const store = `lifework.goals.${tab.slug}.cols`;
   const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store };
+  // Yearly and quarterly goals: a gallery (Trello lists) or the table, and
+  // the colour she gave each year or quarter, shared by both.
+  const grid = `${domain.slug}/${tab.slug}`;
+  const colors = colorsFor(view.groupColors, grid);
+  const base = `/d/${domain.slug}/${tab.slug}`;
+  const here = view.mode && view.mode !== tab.views?.[0] ? `${base}?view=${view.mode}` : base;
+  const gallery = view.mode === 'gallery';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' });
   const body =
     tab.slug === 'roadmap' ? <RoadmapBoard goals={b.goalQuarters} actions={b.goalActions} />
-    : tab.slug === 'years' ? <Years rows={b.goalYears} {...common} />
-    : tab.slug === 'quarters' ? <Quarters rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} {...common} />
+    : tab.slug === 'years' ? (gallery
+      ? <YearsGallery rows={b.goalYears} quarters={b.goalQuarters} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
+      : <Years rows={b.goalYears} colors={colors} grid={grid} {...common} />)
+    : tab.slug === 'quarters' ? (gallery
+      ? <QuartersGallery rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
+      : <Quarters rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} colors={colors} grid={grid} {...common} />)
     : tab.slug === 'actions' ? <Actions rows={b.goalActions} goals={b.goalQuarters} {...common} />
     : <Dashboard goals={b.goalQuarters} actions={b.goalActions} today={today} {...common} />;
   return (

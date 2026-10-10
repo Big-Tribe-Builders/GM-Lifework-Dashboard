@@ -1,9 +1,11 @@
 'use client';
 
 import { Suspense } from 'react';
-import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Icon, SearchIcon } from '@/components/Icon';
-import { DOMAIN_BY_SLUG, findTab, withOverride, type DomainOverride } from '@/lib/nav';
+import { DOMAIN_BY_SLUG, findTab, withOverride, viewOf, type DomainOverride, type Tab } from '@/lib/nav';
+import { VIEW_LABEL, type ViewMode } from '@/lib/grid';
 import { DomainSettings } from '@/components/DomainSettings';
 import { Tabs } from '@/components/Tabs';
 import { ClientsBar } from '@/components/ClientsBar';
@@ -65,10 +67,9 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
             </svg>
           </span>
           <span className="chrome__viewicon" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
-              <path d="M1.5 6h13M6 6v7.5" />
-            </svg>
+            {(tab.views?.length ?? 0) > 1
+              ? <Suspense fallback={<ViewGlyph mode={tab.views![0]} />}><CurrentViewGlyph tab={tab} /></Suspense>
+              : <ViewGlyph mode="table" />}
           </span>
           <span className="chrome__view">{tab.label}</span>
           <Caret />
@@ -81,6 +82,11 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
           ) : null}
           {isClients && tab.slug === 'all' ? <Suspense fallback={null}><ClientsBar part="add" /></Suspense> : null}
           {isClients && tab.slug === 'emails' ? <EmailsBar /> : null}
+          {(tab.views?.length ?? 0) > 1 ? (
+            <Suspense fallback={null}>
+              <ViewSwitch tab={tab} path={pathname} />
+            </Suspense>
+          ) : null}
         </div>
       </header>
     );
@@ -103,6 +109,49 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
       {isHome ? null : <PinRail pins={pins} />}
       {isHome ? null : <PaletteButton />}
     </header>
+  );
+}
+
+/** The glyph before the tab's name: a table, or the cards of a gallery. */
+function ViewGlyph({ mode }: { mode: ViewMode }) {
+  return mode === 'gallery' ? (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="1.5" y="2.5" width="4" height="11" rx="1.2" />
+      <rect x="7" y="2.5" width="4" height="7.5" rx="1.2" />
+      <rect x="12.5" y="2.5" width="2.5" height="9" rx="1" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+      <path d="M1.5 6h13M6 6v7.5" />
+    </svg>
+  );
+}
+
+function CurrentViewGlyph({ tab }: { tab: Tab }) {
+  const params = useSearchParams();
+  return <ViewGlyph mode={viewOf(tab, params.get('view'))} />;
+}
+
+/**
+ * Table or gallery, on the right of the toolbar, for a tab that offers both.
+ * The view is in the address (?view=), so back returns to the other one and
+ * a link opens where it was sent from. An open panel closes on a switch.
+ */
+function ViewSwitch({ tab, path }: { tab: Tab; path: string }) {
+  const params = useSearchParams();
+  const current = viewOf(tab, params.get('view'));
+  return (
+    <div className="viewswitch" role="group" aria-label="View">
+      {tab.views!.map((m) => (
+        <Link key={m} href={`${path}?view=${m}`} scroll={false} aria-current={m === current ? 'true' : undefined}
+          aria-label={VIEW_LABEL[m]} title={VIEW_LABEL[m]}
+          className={`viewswitch__btn${m === current ? ' viewswitch__btn--on' : ''}`}>
+          <ViewGlyph mode={m} />
+          <span className="viewswitch__label">{VIEW_LABEL[m]}</span>
+        </Link>
+      ))}
+    </div>
   );
 }
 

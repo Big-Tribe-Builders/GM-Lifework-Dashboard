@@ -38,6 +38,10 @@ export type Group<T> = {
   head: ReactNode;
   /** Tints the fold row: the status colour, or 'grey' when there is none. */
   tone?: string;
+  /** A palette colour she gave this group (src/lib/palette.ts); wins over the tone. */
+  tint?: string | null;
+  /** Controls on the right of the fold row, outside its open/close button. */
+  tools?: ReactNode;
   rows: T[];
   open: boolean;
   onToggle: () => void;
@@ -138,13 +142,24 @@ export function Grid<T>({
           </thead>
           {groups ? groups.map((g) => (
             <tbody key={g.key} className="grid2__group">
-              <tr className={g.tone ? `grid2__fold grid2__fold--${g.tone}` : 'grid2__fold'}>
+              <tr className={['grid2__fold', g.tone ? `grid2__fold--${g.tone}` : '', g.tint ? `tinted tint-${g.tint}` : ''].filter(Boolean).join(' ')}>
                 <td colSpan={columns.length + 1}>
-                  <button type="button" className="grid2__foldbtn" aria-expanded={g.open} onClick={g.onToggle}>
-                    <span className="grid2__caret" aria-hidden="true">{g.open ? '\u25be' : '\u25b8'}</span>
-                    {g.head}
-                    <span className="grid2__count">{g.rows.length}</span>
-                  </button>
+                  {g.tools ? (
+                    // The whole row still opens and closes the fold, as before;
+                    // the button stays the control for the keyboard. Clicks on
+                    // the tools, or in a menu they open elsewhere on the page,
+                    // are theirs.
+                    <div className="grid2__foldrow" onClick={(e) => {
+                      const t = e.target as Element;
+                      if (!e.currentTarget.contains(t) || t.closest('.grid2__foldtools, .grid2__foldbtn')) return;
+                      g.onToggle();
+                    }}>
+                      <div className="grid2__foldlead">
+                        <FoldButton g={g} />
+                        <span className="grid2__foldtools">{g.tools}</span>
+                      </div>
+                    </div>
+                  ) : <FoldButton g={g} />}
                 </td>
               </tr>
               {g.open ? body(g.rows, g.empty ?? empty) : null}
@@ -161,5 +176,15 @@ export function Grid<T>({
         />
       ) : null}
     </div>
+  );
+}
+
+function FoldButton<T>({ g }: { g: Group<T> }) {
+  return (
+    <button type="button" className="grid2__foldbtn" aria-expanded={g.open} onClick={g.onToggle}>
+      <span className="grid2__caret" aria-hidden="true">{g.open ? '\u25be' : '\u25b8'}</span>
+      {g.head}
+      <span className="grid2__count">{g.rows.length}</span>
+    </button>
   );
 }

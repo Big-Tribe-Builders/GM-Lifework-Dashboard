@@ -17,6 +17,7 @@ import type {
 } from '@/lib/types';
 import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { DomainOverride, CollectionOrder } from '@/lib/nav';
+import type { ViewGroup } from '@/lib/palette';
 import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
 import type { ColumnSetting } from '@/lib/grid';
 import type { CodeProject } from '@/lib/projects';
@@ -75,6 +76,11 @@ export const getCollectionOrder = () =>
 // the grid draws its columns as the code names them.
 export const getGridColumns = () =>
   readTable<ColumnSetting>('grid_columns_api', []);
+
+// The colour she gave each group (a list in a gallery, a fold in a table).
+// Empty until she picks one, and empty if the table is not there yet.
+export const getViewGroups = () =>
+  readTable<ViewGroup>('view_groups_api', localRows<ViewGroup>('viewGroups') ?? []);
 
 // The code projects behind Applications: one row per Claude Code
 // session, loaded from the session list. No seed; the local fixture serves
