@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
-import { ICON_CHOICES, ACCENT_CHOICES, GROUP_ORDER, resolveNav, overrideMap } from '@/lib/nav';
+import { ICON_CHOICES, ACCENT_CHOICES, GROUP_ORDER, DOMAIN_BY_SLUG, resolveNav, overrideMap } from '@/lib/nav';
 import { getDomainSettings, getCollectionOrder } from '@/lib/data';
 import { FIELD_TYPES } from '@/lib/grid';
 import { isPaletteKey } from '@/lib/palette';
@@ -103,8 +103,14 @@ async function currentNav() {
   return { sections: resolveNav(overrideMap(domains), collections), domains, collections };
 }
 
-/** Move a space one place up or down inside its own collection. */
-export async function moveDomain(slug: string, dir: 'up' | 'down'): Promise<{ error: string | null }> {
+/**
+ * Move a space one place up or down inside its own collection.
+ *
+ * From the rail, `visibleOnly`: the step is to the next space she can see
+ * there, past any hidden ones, so a move always shows. Settings lists the
+ * hidden spaces too, so there a step is one place.
+ */
+export async function moveDomain(slug: string, dir: 'up' | 'down', opts: { visibleOnly?: boolean } = {}): Promise<{ error: string | null }> {
   const db = getSupabase();
   if (!db) return { error: 'Supabase is not configured, so there is nowhere to save this.' };
 
@@ -114,9 +120,14 @@ export async function moveDomain(slug: string, dir: 'up' | 'down'): Promise<{ er
 
   const order = section.domains.map((d) => d.slug);
   const i = order.indexOf(slug);
-  const j = dir === 'up' ? i - 1 : i + 1;
+  const step = dir === 'up' ? -1 : 1;
+  let j = i + step;
+  if (opts.visibleOnly) while (j >= 0 && j < order.length && section.domains[j].hidden) j += step;
   if (j < 0 || j >= order.length) return { error: null };   // already at the end
-  [order[i], order[j]] = [order[j], order[i]];
+  // Take it out and put it on the far side of that neighbour; hidden spaces
+  // in between keep their order.
+  order.splice(i, 1);
+  order.splice(j, 0, slug);
 
   const { error } = await db.from('domain_settings').upsert(
     order.map((s, n) => ({ slug: s, group_name: section.group, sort_order: n })),
@@ -148,9 +159,13 @@ export async function moveDomainToCollection(
   return { error: null };
 }
 
-/** Move a whole collection up or down the rail. */
+/**
+ * Move a whole collection up or down the rail. From the rail, `visibleOnly`
+ * steps past collections whose spaces are all hidden (the rail does not
+ * draw those), so a move always shows.
+ */
 export async function moveCollection(
-  name: string, dir: 'up' | 'down',
+  name: string, dir: 'up' | 'down', opts: { visibleOnly?: boolean } = {},
 ): Promise<{ error: string | null }> {
   const db = getSupabase();
   if (!db) return { error: 'Supabase is not configured, so there is nowhere to save this.' };
@@ -159,13 +174,77 @@ export async function moveCollection(
   const order = sections.map((s) => s.group);
   const i = order.indexOf(name);
   if (i === -1) return { error: 'That collection is not in the rail.' };
-  const j = dir === 'up' ? i - 1 : i + 1;
+  const step = dir === 'up' ? -1 : 1;
+  let j = i + step;
+  if (opts.visibleOnly) while (j >= 0 && j < order.length && sections[j].domains.every((d) => d.hidden)) j += step;
   if (j < 0 || j >= order.length) return { error: null };
-  [order[i], order[j]] = [order[j], order[i]];
+  order.splice(i, 1);
+  order.splice(j, 0, name);
 
   const { error } = await db.from('collection_settings').upsert(
     order.map((n, k) => ({ name: n, sort_order: k, updated_at: new Date().toISOString() })),
   );
+  if (error) return { error: error.message };
+
+  revalidatePath('/', 'layout');
+  return { error: null };
+}
+
+// ------------------------------------------------------------- hiding things
+
+/** Hide a space from the rail, or show it again. Nothing is deleted. */
+export async function setSpaceHidden(slug: string, hidden: boolean): Promise<{ error: string | null }> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured, so there is nowhere to save this.' };
+  if (!DOMAIN_BY_SLUG.has(slug)) return { error: 'That space does not exist.' };
+
+  const { error } = await db.from('domain_settings').upsert({ slug, hidden, updated_at: new Date().toISOString() });
+  if (error) return { error: error.message };
+
+  revalidatePath('/', 'layout');
+  return { error: null };
+}
+
+/**
+ * Hide one tab of a space from its tab strip, or show it again. At least one
+ * tab stays shown: a space with every tab hidden would have nothing to open.
+ */
+export async function setTabHidden(slug: string, tab: string, hidden: boolean): Promise<{ error: string | null }> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured, so there is nowhere to save this.' };
+  const domain = DOMAIN_BY_SLUG.get(slug);
+  if (!domain) return { error: 'That space does not exist.' };
+  if (!domain.tabs.some((t) => t.slug === tab)) return { error: 'That tab does not exist.' };
+
+  const { data, error: readError } = await db.from('domain_settings').select('hidden_tabs').eq('slug', slug).maybeSingle();
+  if (readError) return { error: readError.message };
+  const now = new Set<string>(((data?.hidden_tabs as string[] | null) ?? []).filter((t) => domain.tabs.some((x) => x.slug === t)));
+  if (hidden) now.add(tab); else now.delete(tab);
+  if (now.size >= domain.tabs.length) return { error: 'One tab has to stay. To take the whole space away, hide the space.' };
+
+  const { error } = await db.from('domain_settings').upsert({ slug, hidden_tabs: [...now], updated_at: new Date().toISOString() });
+  if (error) return { error: error.message };
+
+  revalidatePath('/', 'layout');
+  return { error: null };
+}
+
+/** Her name for one tab of a space; an empty name gives the tab its own name back. */
+export async function renameTab(slug: string, tab: string, name: string): Promise<{ error: string | null }> {
+  const db = getSupabase();
+  if (!db) return { error: 'Supabase is not configured, so there is nowhere to save this.' };
+  const domain = DOMAIN_BY_SLUG.get(slug);
+  const base = domain?.tabs.find((t) => t.slug === tab);
+  if (!domain || !base) return { error: 'That tab does not exist.' };
+  const v = name.trim();
+  if (v.length > 40) return { error: 'Forty characters at most.' };
+
+  const { data, error: readError } = await db.from('domain_settings').select('tab_names').eq('slug', slug).maybeSingle();
+  if (readError) return { error: readError.message };
+  const names: Record<string, string> = { ...((data?.tab_names as Record<string, string> | null) ?? {}) };
+  if (v && v !== base.label) names[tab] = v; else delete names[tab];
+
+  const { error } = await db.from('domain_settings').upsert({ slug, tab_names: names, updated_at: new Date().toISOString() });
   if (error) return { error: error.message };
 
   revalidatePath('/', 'layout');

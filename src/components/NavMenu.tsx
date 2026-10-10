@@ -52,8 +52,8 @@ export function NavMenu({ kind, name, groups, canUp, canDown }: {
 
   const move = (dir: 'up' | 'down') =>
     kind === 'collection'
-      ? run(() => moveCollection(name, dir))
-      : run(() => moveDomain(name, dir));
+      ? run(() => moveCollection(name, dir, { visibleOnly: true }))
+      : run(() => moveDomain(name, dir, { visibleOnly: true }));
 
   return (
     <span className="navmenu" ref={wrap}>

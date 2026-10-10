@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DOMAINS, domainHref } from '@/lib/nav';
+import { DOMAINS, domainHref, withOverride, type DomainOverride } from '@/lib/nav';
 
 /**
  * The command palette — the real answer to "I don't want to click too many
@@ -26,7 +26,7 @@ export type PaletteEntry = {
   hint?: string;
 };
 
-export function CommandPalette({ extra }: { extra: PaletteEntry[] }) {
+export function CommandPalette({ extra, overrides = {} }: { extra: PaletteEntry[]; overrides?: Record<string, DomainOverride> }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -39,31 +39,39 @@ export function CommandPalette({ extra }: { extra: PaletteEntry[] }) {
   const entries = useMemo<PaletteEntry[]>(() => {
     const nav: PaletteEntry[] = [
       { id: 'home', label: 'Command Center', group: 'Go to', href: '/', keywords: 'today home dashboard start' },
-      { id: 'launchpad', label: 'Launchpad', group: 'Go to', href: '/launchpad', keywords: 'apps links tools open' },
       { id: 'settings', label: 'Settings', group: 'Go to', href: '/settings', keywords: 'config supabase connect' },
     ];
 
-    for (const d of DOMAINS) {
+    // Her names, her collections; spaces and tabs she hid in Settings are
+    // left out. The names from the code still match, so an old name finds
+    // the renamed space or tab.
+    for (const base of DOMAINS) {
+      const o = overrides[base.slug];
+      const d = withOverride(base, o);
+      if (d.hidden) continue;
+      const group = o?.groupName ?? d.group;
+      const hide = new Set(d.hiddenTabs ?? []);
       nav.push({
         id: `d-${d.slug}`,
         label: d.label,
         group: 'Go to',
         href: domainHref(d),
-        keywords: `${d.group} ${d.blurb}`,
+        keywords: `${group} ${d.blurb} ${base.label}`,
       });
-      for (const t of d.tabs) {
+      d.tabs.forEach((t, i) => {
+        if (hide.has(t.slug)) return;
         nav.push({
           id: `d-${d.slug}-${t.slug}`,
           label: `${d.label} — ${t.label}`,
-          group: d.group,
+          group,
           href: `/d/${d.slug}/${t.slug}`,
-          keywords: t.blurb,
+          keywords: `${t.blurb} ${base.label} ${base.tabs[i].label}`,
           hint: t.label,
         });
-      }
+      });
     }
     return [...nav, ...extra];
-  }, [extra]);
+  }, [extra, overrides]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();

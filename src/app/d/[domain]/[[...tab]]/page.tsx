@@ -10,8 +10,11 @@ import { getDomainSettings, getGridColumns, getViewGroups } from '@/lib/data';
 
 export async function generateMetadata({ params }: { params: Promise<{ domain: string; tab?: string[] }> }) {
   const { domain: slug, tab } = await params;
-  const domain = DOMAIN_BY_SLUG.get(slug);
-  if (!domain) return { title: 'Not found — Big Tribe Builders' };
+  const base = DOMAIN_BY_SLUG.get(slug);
+  if (!base) return { title: 'Not found — Big Tribe Builders' };
+  // Her names for the space and the tab, as the bar shows them.
+  const { rows } = await getDomainSettings();
+  const domain = withOverride(base, overrideMap(rows)[slug]);
   const t = findTab(domain, tab?.[0]);
   return { title: `${domain.label} · ${t.label} — Big Tribe Builders` };
 }
@@ -34,15 +37,17 @@ export default async function DomainPage({
   const base = DOMAIN_BY_SLUG.get(slug);
   if (!base) notFound();
 
-  // An unknown tab falls back to the first one rather than 404ing — a stale
-  // bookmark should land you somewhere useful, not on an error.
-  const active = findTab(base, tab?.[0]);
   const [bundle, { rows: settings }, { rows: columns }, { rows: groupColors }] = await Promise.all([
     loadAll(), getDomainSettings(), getGridColumns(), getViewGroups(),
   ]);
   // A recolour has to reach the zone as well, or the widgets inside it would
   // keep the old accent while the chrome around them changed.
   const domain = withOverride(base, overrideMap(settings)[base.slug]);
+  // An unknown tab falls back to the first one she has not hidden rather than
+  // 404ing — a stale bookmark should land you somewhere useful. Resolved on
+  // the space as she has set it up, so the body, the tab strip and the bar
+  // always agree on which tab this is.
+  const active = findTab(domain, tab?.[0]);
 
   return (
     // The zone carries its colour, so everything inside (buttons, panels,

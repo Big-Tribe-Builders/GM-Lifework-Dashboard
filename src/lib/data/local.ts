@@ -40,6 +40,7 @@ export type LocalFixture = {
   quinbPostTypes?: unknown[];
   quinbPosts?: unknown[];
   viewGroups?: unknown[];
+  domainSettings?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;

@@ -66,7 +66,7 @@ export const getClientApps = () =>
 // What she has renamed or recoloured. No seed: an empty list means every
 // domain still looks the way nav.ts defines it, which is the honest default.
 export const getDomainSettings = () =>
-  readTable<DomainOverride>('domain_settings_api', []);
+  readTable<DomainOverride>('domain_settings_api', localRows<DomainOverride>('domainSettings') ?? []);
 
 export const getCollectionOrder = () =>
   readTable<CollectionOrder>('collection_settings_api', []);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Domain, IconName, Accent } from '@/lib/nav';
 import { ICON_CHOICES, ACCENT_CHOICES } from '@/lib/nav';
@@ -8,11 +9,12 @@ import { Icon } from '@/components/Icon';
 import { saveDomainSettings } from '@/app/d/actions';
 
 /**
- * The gear at the right of the identity bar.
+ * The cog at the right of the identity bar: the settings.
  *
- * One setting so far: what this domain is called, the icon it carries and
- * the colour it wears. The menu exists so there is somewhere for the next
- * one to go, not because a single item needs a menu.
+ * For this space: what it is called, the icon it carries and the colour it
+ * wears. For all of them: Settings › Spaces, where every collection and space
+ * is listed — order, collection, name, icon, colour, and which spaces and
+ * tabs are hidden.
  */
 export function DomainSettings({ domain }: { domain: Domain }) {
   const [open, setOpen] = useState(false);
@@ -43,11 +45,7 @@ export function DomainSettings({ domain }: { domain: Domain }) {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3.2" />
-          <path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.9 1.9M7.4 16.6l-1.9 1.9M18.5 18.5l-1.9-1.9M7.4 7.4 5.5 5.5" />
-        </svg>
+        <Icon name="settings" />
       </button>
 
       {open ? (
@@ -60,6 +58,9 @@ export function DomainSettings({ domain }: { domain: Domain }) {
           >
             Edit name, icon and colour
           </button>
+          <Link href={`/settings#space-${domain.slug}`} role="menuitem" className="dsettings__item" onClick={() => setOpen(false)}>
+            All spaces and collections
+          </Link>
         </div>
       ) : null}
 
@@ -68,7 +69,7 @@ export function DomainSettings({ domain }: { domain: Domain }) {
   );
 }
 
-function EditDialog({ domain, onClose }: { domain: Domain; onClose: () => void }) {
+export function EditDialog({ domain, onClose }: { domain: Domain; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const router = useRouter();
   const [name, setName] = useState(domain.label);

@@ -12,6 +12,7 @@ import {
 } from '@/lib/nav';
 
 const TIGHT = 'lifework.rail.tight';
+const CLOSED = 'lifework.rail.closed';
 
 /**
  * The left rail: where you are.
@@ -19,8 +20,10 @@ const TIGHT = 'lifework.rail.tight';
  * Stable order, never reordered by activity — but hers to arrange. The three
  * dots on a collection or a space move it; nothing moves on its own.
  *
- * Collapsed, the rail is icons only. The choice is kept in this browser, so
- * the rail opens the way she left it.
+ * Collapsed, the rail is icons only. A collection can also be folded shut
+ * by its name, so the rail takes less room. Both choices are kept in this
+ * browser, so the rail opens the way she left it. Spaces she hid in
+ * Settings are not drawn.
  */
 export function Sidebar({ counts, overrides = {}, collections = [], signedIn = false }: {
   counts: Record<string, number>;
@@ -31,10 +34,24 @@ export function Sidebar({ counts, overrides = {}, collections = [], signedIn = f
 }) {
   const pathname = usePathname();
   const [tight, setTight] = useState(false);
+  const [closed, setClosed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     try { setTight(localStorage.getItem(TIGHT) === '1'); } catch { /* private mode */ }
+    try {
+      const v = JSON.parse(localStorage.getItem(CLOSED) ?? '{}');
+      if (v && typeof v === 'object') setClosed(v as Record<string, boolean>);
+    } catch { /* private mode, or nothing stored */ }
   }, []);
+
+  function fold(group: string) {
+    setClosed((c) => {
+      const next = { ...c, [group]: !c[group] };
+      if (!next[group]) delete next[group];
+      try { localStorage.setItem(CLOSED, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  }
 
   function toggle() {
     setTight((t) => {
@@ -43,7 +60,10 @@ export function Sidebar({ counts, overrides = {}, collections = [], signedIn = f
     });
   }
 
-  const sections = resolveNav(overrides, collections);
+  // Hidden spaces are left out; a collection with nothing left to show goes too.
+  const sections = resolveNav(overrides, collections)
+    .map((s) => ({ ...s, domains: s.domains.filter((d) => !d.hidden) }))
+    .filter((s) => s.domains.length > 0);
 
   return (
     <aside className={`sidebar${tight ? ' sidebar--tight' : ''}`}>
@@ -78,10 +98,23 @@ export function Sidebar({ counts, overrides = {}, collections = [], signedIn = f
           </Link>
         </div>
 
-        {sections.map((section, si) => (
-          <div className="sidebar__group" key={section.group}>
+        {sections.map((section, si) => {
+          // A folded collection's spaces are hidden by CSS, and only where the
+          // names show: the icons-only rail (the toggle, or a narrow window)
+          // has no name to unfold by, so there it shows everything.
+          const shut = !!closed[section.group];
+          return (
+          <div className={`sidebar__group${shut ? ' sidebar__group--shut' : ''}`} key={section.group}>
             <p className="eyebrow eyebrow--row">
-              <span>{section.group}</span>
+              <button type="button" className="sidebar__fold" aria-expanded={!shut} onClick={() => fold(section.group)}
+                title={shut ? `Show the spaces in ${section.group}` : `Fold ${section.group} shut`}>
+                <svg className="sidebar__caret" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d={shut ? 'm6 4 4 4-4 4' : 'm4 6 4 4 4-4'} />
+                </svg>
+                <span>{section.group}</span>
+                {shut ? <span className="sidebar__foldcount">{section.domains.length}</span> : null}
+              </button>
               <NavMenu
                 kind="collection"
                 name={section.group}
@@ -114,34 +147,20 @@ export function Sidebar({ counts, overrides = {}, collections = [], signedIn = f
               );
             })}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
-      <div className="sidebar__foot">
-        <Link
-          href="/launchpad"
-          className={`sidebar__item${pathname.startsWith('/launchpad') ? ' sidebar__item--active' : ''}`}
-          title={tight ? 'Launchpad' : undefined}
-        >
-          <span className="icon-chip icon-chip--sm accent-orange"><Icon name="grid" /></span>
-          <span className="sidebar__label">Launchpad</span>
-        </Link>
-        <Link
-          href="/settings"
-          className={`sidebar__item${pathname.startsWith('/settings') ? ' sidebar__item--active' : ''}`}
-          title={tight ? 'Settings' : undefined}
-        >
-          <span className="icon-chip icon-chip--sm accent-green"><Icon name="settings" /></span>
-          <span className="sidebar__label">Settings</span>
-        </Link>
-      
-        {signedIn ? (
+      {/* Launchpad and Settings left the foot (Giulia, 10 Oct 2026): the room
+          goes to the spaces. Settings opens from the cog at the top right. */}
+      {signedIn ? (
+        <div className="sidebar__foot">
           <button type="button" className="sidebar__item sidebar__signout" onClick={() => signOut()} title={tight ? 'Sign out' : undefined}>
             <span className="icon-chip icon-chip--sm accent-red"><Icon name="logout" /></span>
             <span className="sidebar__label">Sign out</span>
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </aside>
   );
 }

@@ -92,8 +92,7 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
     );
   }
 
-  const title = pathname.startsWith('/launchpad') ? 'Launchpad'
-    : pathname.startsWith('/settings') ? 'Settings'
+  const title = pathname.startsWith('/settings') ? 'Settings'
     : 'Command Center';
 
   // The Command Center bar is purple and carries nothing but its name: no

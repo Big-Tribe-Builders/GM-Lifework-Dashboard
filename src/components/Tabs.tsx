@@ -15,11 +15,15 @@ import type { Domain } from '@/lib/nav';
  * and a pipe there would be a second line doing the first one's job.
  */
 export function Tabs({ domain, active }: { domain: Domain; active: string }) {
+  // Tabs she hid in Settings are left out, unless it is the one open now
+  // (an old link, or the tab she just hid), so she always sees where she is.
+  const hide = new Set(domain.hiddenTabs ?? []);
+  const tabs = domain.tabs.filter((t) => !hide.has(t.slug) || t.slug === active);
   return (
     <nav className="tabs" aria-label={`${domain.label} sections`}>
-      {domain.tabs.map((t, i) => {
+      {tabs.map((t, i) => {
         const isActive = t.slug === active;
-        const prev = domain.tabs[i - 1];
+        const prev = tabs[i - 1];
         const divide = Boolean(prev) && !isActive && prev.slug !== active;
         return (
           <span key={t.slug} className="tabs__slot">

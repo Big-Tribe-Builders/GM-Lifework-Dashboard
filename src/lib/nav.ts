@@ -50,6 +50,10 @@ export type Domain = {
   /** Shown as the page subtitle on the domain's own page. */
   blurb: string;
   tabs: Tab[];
+  /** Hidden from the rail by her (Settings). The space itself still opens by its address. */
+  hidden?: boolean;
+  /** Tabs she hid from the tab strip (Settings), by slug. */
+  hiddenTabs?: string[];
 };
 
 export type Accent = 'violet' | 'red' | 'green' | 'orange';
@@ -277,7 +281,14 @@ export function domainsInGroup(group: DomainGroup): Domain[] {
 
 /** The tab to land on when a domain is opened with no tab named. */
 export function defaultTab(domain: Domain): Tab {
-  return domain.tabs[0];
+  return visibleTabs(domain)[0] ?? domain.tabs[0];
+}
+
+/** The tabs drawn in the strip: all of them, less the ones she hid. */
+export function visibleTabs(domain: Domain): Tab[] {
+  const hide = new Set(domain.hiddenTabs ?? []);
+  const shown = domain.tabs.filter((t) => !hide.has(t.slug));
+  return shown.length ? shown : domain.tabs;
 }
 
 export function findTab(domain: Domain, slug: string | undefined): Tab {
@@ -289,8 +300,10 @@ export function findTab(domain: Domain, slug: string | undefined): Tab {
  * What she has renamed or recoloured, from the database.
  *
  * The rail and the tabs stay in this file: that is the architecture, and it
- * is code. Only these three are hers to change from the interface, so a
- * rename never needs a deploy.
+ * is code. What she changes from the interface (Settings › Spaces, or the
+ * cog on a space) is stored: the name, icon and colour, which collection a
+ * space sits in and where, and which spaces and tabs are hidden. A change
+ * never needs a deploy.
  */
 export type DomainOverride = {
   slug: string;
@@ -301,6 +314,12 @@ export type DomainOverride = {
   groupName?: string | null;
   /** Its place inside that collection. Null means "wherever the code puts it". */
   sortOrder?: number | null;
+  /** Hidden from the rail. */
+  hidden?: boolean | null;
+  /** Tabs hidden from the strip, by slug. */
+  hiddenTabs?: string[] | null;
+  /** Her names for tabs, by slug. A tab without one keeps its name from the code. */
+  tabNames?: Record<string, string> | null;
 };
 
 /** The order of the collections themselves. */
@@ -370,6 +389,13 @@ export function withOverride(d: Domain, o?: DomainOverride | null): Domain {
     label: o.name?.trim() ? o.name.trim() : d.label,
     icon: o.icon && ICON_NAMES.has(o.icon) ? (o.icon as IconName) : d.icon,
     accent: o.accent && ACCENTS.has(o.accent) ? (o.accent as Accent) : d.accent,
+    hidden: o.hidden === true,
+    tabs: d.tabs.map((t) => {
+      const n = o.tabNames?.[t.slug];
+      return typeof n === 'string' && n.trim() ? { ...t, label: n.trim().slice(0, 40) } : t;
+    }),
+    // Only tabs that exist; a stale slug in the database changes nothing.
+    hiddenTabs: (o.hiddenTabs ?? []).filter((t) => d.tabs.some((x) => x.slug === t)),
   };
 }
 

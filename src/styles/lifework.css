@@ -1659,7 +1659,7 @@ main.portal {
   transition: background-color 120ms;
 }
 .dsettings__btn:hover { background: rgba(255, 255, 255, .28); }
-.dsettings__btn svg { width: 17px; height: 17px; }
+.dsettings__btn svg { width: 18px; height: 18px; stroke-width: 1.8; }
 
 .dsettings__menu {
   position: absolute;
@@ -1688,6 +1688,7 @@ main.portal {
   cursor: pointer;
 }
 .dsettings__item:hover { background: var(--grey-100); }
+a.dsettings__item { text-decoration: none; }
 
 /* the icon and colour pickers in the edit dialog */
 .pickgrid {
@@ -2229,6 +2230,48 @@ main.portal {
 
 /* Text for screen readers only. */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* A collection's name in the rail folds its spaces shut and open again. */
+.sidebar__fold { display: inline-flex; align-items: center; gap: 4px; min-width: 0; padding: 2px 4px 2px 0; margin-left: -2px; border: 0; border-radius: 4px; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; cursor: pointer; }
+.sidebar__fold:hover { color: var(--ink); }
+.sidebar__fold:focus-visible { outline: 2px solid var(--brand-violet); outline-offset: 1px; }
+.sidebar__caret { width: 12px; height: 12px; flex: none; }
+.sidebar__foldcount { margin-left: 2px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+/* Folded spaces hide only where the names show; the icons-only rail (the
+   toggle, or a window of 900px or less) always shows every space. */
+@media (min-width: 901px) { .sidebar:not(.sidebar--tight) .sidebar__group--shut .sidebar__row { display: none; } }
+
+/* Settings › Spaces: every collection and space in the rail. */
+.navset { display: flex; flex-direction: column; gap: 18px; }
+.navset__collection { border: 1px solid var(--grid-line); border-radius: 10px; overflow: clip; }
+.navset__chead { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--grey-100); border-bottom: 1px solid var(--grid-line); }
+.navset__cname { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.navset__muted { font-size: 12px; color: var(--ink-soft); }
+.navset__spacer { flex: 1; }
+.navset__space { padding: 10px 12px; border-top: 1px solid var(--grid-line); scroll-margin-top: 140px; }
+.navset__chead + .navset__space { border-top: 0; }
+.navset__space:target, .navset__space--marked { background: color-mix(in srgb, var(--brand-violet) 6%, white); }
+.navset__space--hidden .navset__row > .icon-chip { opacity: .55; }
+.navset__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.navset__name { font-weight: 600; font-size: 14px; }
+.navset__badge { padding: 1px 8px; border-radius: 9999px; background: var(--grey-100); color: var(--ink-soft); font-size: 11px; font-weight: 600; }
+.navset__mover { display: inline-flex; align-items: center; gap: 2px; }
+.navset__arrow { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); color: var(--ink-soft); cursor: pointer; }
+.navset__arrow svg { width: 14px; height: 14px; }
+.navset__arrow:hover:not(:disabled) { background: var(--grey-100); color: var(--ink); }
+.navset__arrow:disabled { opacity: .35; cursor: default; }
+.navset__arrow:focus-visible, .navset__tabname:focus-visible, .navset__field select:focus-visible,
+.navset__tab input[type="checkbox"]:focus-visible, .navset__row .btn:focus-visible { outline: 2px solid var(--brand-violet); outline-offset: 1px; }
+.navset__field select { height: 28px; padding: 0 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; color: var(--ink); }
+.navset__error { flex: none; max-width: 320px; white-space: normal; }
+.navset__rowerror { margin: 6px 0 0; }
+.navset__tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 0 38px; }
+.navset__tab { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); }
+.navset__tab--off { background: var(--grey-100); }
+.navset__tab--off .navset__tabname { color: var(--ink-soft); text-decoration: line-through; }
+.navset__tabname { min-width: 0; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 13px; color: var(--ink); }
+.navset__tabname:hover { background: var(--grey-100); }
+@media (max-width: 640px) { .navset__tabs { margin-left: 0; } }
 
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so

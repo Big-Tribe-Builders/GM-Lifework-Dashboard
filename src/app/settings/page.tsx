@@ -1,20 +1,23 @@
-import { getBrainSources, isSupabaseConfigured } from '@/lib/data';
+import { getBrainSources, getDomainSettings, getCollectionOrder, isSupabaseConfigured } from '@/lib/data';
 import { PageHead, Widget, Row, Rows, Badge } from '@/components/ui';
-import { accentAt, DOMAINS, DOMAIN_BY_SLUG } from '@/lib/nav';
+import { accentAt, DOMAIN_BY_SLUG, resolveNav, overrideMap } from '@/lib/nav';
 import { adminClient, currentUser, ADMIN_ENV, authEnabled } from '@/lib/auth';
 import { Users, type UserRow } from '@/components/Users';
+import { NavSettings } from '@/components/NavSettings';
 
 export const metadata = { title: 'Settings — Big Tribe Builders' };
 
 /**
- * Settings.
+ * Settings, opened from the cog at the top right of every space.
  *
- * Mostly a status page right now, and honest about it. The two things worth
- * seeing: whether Supabase is behind the dashboard yet, and which intelligence
- * sources are actually reachable.
+ * First the spaces: every collection and space in the rail, with what she
+ * can change about each. Then who can sign in, and what is connected.
  */
 export default async function Settings() {
-  const { rows: sources } = await getBrainSources();
+  const [{ rows: sources }, { rows: domainSettings }, { rows: collections }] = await Promise.all([
+    getBrainSources(), getDomainSettings(), getCollectionOrder(),
+  ]);
+  const sections = resolveNav(overrideMap(domainSettings), collections);
 
   // Who can sign in. Listing needs the service role key; without it the
   // section says so rather than showing an empty table as if nobody exists.
@@ -35,7 +38,18 @@ export default async function Settings() {
 
   return (
     <main className="content content--wide stack">
-      <PageHead title="Settings" blurb="What is connected, and what it would take to connect the rest." />
+      <PageHead title="Settings" blurb="The spaces in the rail and their tabs, who can sign in, and what is connected." />
+
+      <div id="spaces">
+        <Widget title="Spaces" accent="green">
+          <p className="muted" style={{ marginBottom: 12, lineHeight: 1.6 }}>
+            Every collection and space in the rail, in the order it is drawn. Move them with the arrows, pick a space&apos;s collection,
+            change its name, icon and colour, or hide it from the rail. Under each space are its tabs: untick one to hide it from the
+            tab strip, or type a new name. Nothing is deleted; whatever is hidden comes back when it is shown again.
+          </p>
+          <NavSettings sections={sections} />
+        </Widget>
+      </div>
 
       <Widget title="Users" accent="violet">
         <p className="muted" style={{ marginBottom: 12, lineHeight: 1.6 }}>
@@ -95,30 +109,6 @@ export default async function Settings() {
         </div>
       </section>
 
-      <section className="grid">
-        <div className="col-12">
-          <Widget title="Navigation" accent="green" flush>
-            <Rows>
-              {DOMAINS.map((d, i) => (
-                <Row
-                  key={d.slug}
-                  accent={accentAt(i)}
-                  icon={d.icon}
-                  title={d.label}
-                  sub={`${d.group} · ${d.tabs.length} tabs · ${d.blurb}`}
-                  href={`/d/${d.slug}/${d.tabs[0].slug}`}
-                />
-              ))}
-            </Rows>
-            <div className="widget__foot">
-              <p className="muted">
-                The rail and the tabs are one config file — <code>src/lib/nav.ts</code>. Renaming a
-                domain or reordering the groups is an edit there, and the palette follows automatically.
-              </p>
-            </div>
-          </Widget>
-        </div>
-      </section>
     </main>
   );
 }

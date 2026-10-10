@@ -57,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             {children}
           </div>
         </div>
-        <CommandPalette extra={extra} />
+        <CommandPalette extra={extra} overrides={overrides} />
       </body>
     </html>
   );
