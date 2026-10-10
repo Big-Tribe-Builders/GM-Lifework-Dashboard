@@ -2,7 +2,7 @@ import {
   getTasks, getApps, getBrainSources, getVoiceRules,
   getContent, getCourses, getGoals, getSignals,
   getCompanies, getContacts, getClientApps, getCrmEmails,
-  getUpworkLeads, getUpworkInvoices, getCodeProjects,
+  getUpworkLeads, getUpworkInvoices, getUpworkJobs, getCodeProjects,
   getBtbPlan, getBtbExperiments, getBtbPlaybook, getPulseDismissed,
   getYearGoals, getQuarterGoals, getActionPoints,
   getMailLists, getMailListMembers, getMailTemplates, getMailSenders, getMailCampaigns, getMailSteps, getMailSends, getMailSuppressions,
@@ -15,7 +15,7 @@ import type {
   ContentItem, Course, GoalPeriod, Signal,
 } from '@/lib/types';
 import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
-import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
+import type { UpworkLead, UpworkInvoice, UpworkJob } from '@/lib/upwork';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
@@ -59,6 +59,7 @@ export type Bundle = {
   /** Upwork, imported from the freelancer account. Read-only here. */
   upworkLeads: UpworkLead[];
   upworkInvoices: UpworkInvoice[];
+  upworkJobs: UpworkJob[];
 
   /** Open client work, read live from Notion's Daily Tasks. Not stored. */
   clientTasks: Task[];
@@ -105,7 +106,7 @@ export async function loadAll(): Promise<Bundle> {
     tasks, apps, brainSources, voiceRules,
     content, courses, goals, signals,
     companies, contacts, clientApps, clientTasks,
-    upworkLeads, upworkInvoices, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
+    upworkLeads, upworkInvoices, upworkJobs, codeProjects, crmEmails, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
     book, chapters, quinbMembers, quinbPosts, quinbYears, quinbMonths, quinbWeeks, quinbPostTypes,
@@ -113,7 +114,7 @@ export async function loadAll(): Promise<Bundle> {
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
     getCompanies(), getContacts(), getClientApps(), readClientTasks(),
-    getUpworkLeads(), getUpworkInvoices(), getCodeProjects(), getCrmEmails(),
+    getUpworkLeads(), getUpworkInvoices(), getUpworkJobs(), getCodeProjects(), getCrmEmails(),
     getBtbPlan(), getBtbExperiments(), getBtbPlaybook(), getPulseDismissed(),
     getYearGoals(), getQuarterGoals(), getActionPoints(),
     getMailLists(), getMailListMembers(), getMailTemplates(), getMailSenders(), getMailCampaigns(), getMailSteps(), getMailSends(), getMailSuppressions(),
@@ -123,7 +124,7 @@ export async function loadAll(): Promise<Bundle> {
   // Every read that failed, each message once, so one missing table cannot hide another.
   const failedReads = [
     tasks, apps, brainSources, voiceRules, content, courses, goals, signals,
-    companies, contacts, clientApps, crmEmails, codeProjects, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
+    companies, contacts, clientApps, crmEmails, codeProjects, upworkJobs, btbPlan, btbExperiments, btbPlaybook, pulseDismissed,
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
     book, chapters, quinbMembers, quinbPosts, quinbYears, quinbMonths, quinbWeeks, quinbPostTypes,
@@ -154,6 +155,7 @@ export async function loadAll(): Promise<Bundle> {
 
     upworkLeads: upworkLeads.rows,
     upworkInvoices: upworkInvoices.rows,
+    upworkJobs: upworkJobs.rows,
     codeProjects: codeProjects.rows,
     btbPlan: btbPlan.rows,
     btbExperiments: btbExperiments.rows,

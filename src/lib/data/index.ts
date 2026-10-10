@@ -18,7 +18,7 @@ import type {
 import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { DomainOverride, CollectionOrder } from '@/lib/nav';
 import type { ViewGroup } from '@/lib/palette';
-import type { UpworkLead, UpworkInvoice } from '@/lib/upwork';
+import type { UpworkLead, UpworkInvoice, UpworkJob } from '@/lib/upwork';
 import type { ColumnSetting } from '@/lib/grid';
 import type { CodeProject } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
@@ -139,6 +139,8 @@ export const getPulseDismissed = () => readTable<{ key: string }>('pulse_dismiss
 
 export const getUpworkLeads = () => readTable<UpworkLead>('upwork_leads_api', []);
 export const getUpworkInvoices = () => readTable<UpworkInvoice>('upwork_invoices_api', []);
+// The job pipeline (Upwork › Proposals). No seed: jobs come from the scan.
+export const getUpworkJobs = () => readTable<UpworkJob>('upwork_jobs_api', localRows<UpworkJob>('upworkJobs') ?? []);
 
 // ---------------------------------------------------------------- selectors
 

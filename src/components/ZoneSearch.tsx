@@ -23,7 +23,13 @@ export function ZoneSearch({ placeholder }: { placeholder: string }) {
     const current = params.get('q') ?? '';
     if (q === current) return;
     const t = setTimeout(() => {
-      router.replace(q ? `${pathname}?q=${encodeURIComponent(q)}` : pathname);
+      // Keep the rest of the address (the view: table or gallery); only an
+      // open panel closes, as the list under it changes.
+      const next = new URLSearchParams(params.toString());
+      if (q) next.set('q', q); else next.delete('q');
+      next.delete('peek');
+      const s = next.toString();
+      router.replace(s ? `${pathname}?${s}` : pathname);
     }, 180);
     return () => clearTimeout(t);
   }, [q, params, router, pathname]);

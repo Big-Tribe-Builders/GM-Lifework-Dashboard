@@ -179,7 +179,8 @@ export const DOMAINS: Domain[] = [
     tabs: [
       { slug: 'messages', label: 'Messages', blurb: 'Every conversation, newest first.' },
       { slug: 'clients', label: 'Clients', blurb: 'Who signed, and what they paid.' },
-      { slug: 'proposals', label: 'Proposals', blurb: 'Sent, and what came of them.' },
+      { slug: 'proposals', label: 'Proposals', blurb: 'Jobs found on Upwork, the proposal for each, and where it stands.', views: ['gallery', 'table'],
+        help: 'What it is: the job pipeline, moved over from your Notion "Upwork Pipeline". One line per job found on Upwork: the job, the client, the budget, how many proposals it had when it was found, the Fit (Strong, Possible, Skip) and why it fits, the work type, the proposal written for it, and where it stands: Open, Proposal draft, Approved, Posted, Read by client, Free consultation, Accepted, Declined, Moved to Client Projects, Skipped.\n\nGallery and table: the switch on the right of this bar. The gallery has a list per status, like your Notion board; the table shows every job in rows.\n\nHow we work with it: open a job to read the job post and the proposal, edit the proposal (it saves when you click away or press Ctrl+S), and set it to Approved when it may go out. Sending it on Upwork costs Connects and is a separate step: nothing here sends anything. "Copy proposal" puts the text on the clipboard.' },
     ],
   },
   {

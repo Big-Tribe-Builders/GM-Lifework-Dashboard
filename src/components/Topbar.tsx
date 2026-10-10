@@ -143,7 +143,7 @@ function ViewSwitch({ tab, path }: { tab: Tab; path: string }) {
   return (
     <div className="viewswitch" role="group" aria-label="View">
       {tab.views!.map((m) => (
-        <Link key={m} href={`${path}?view=${m}`} scroll={false} aria-current={m === current ? 'true' : undefined}
+        <Link key={m} href={switchHref(path, params, m)} scroll={false} aria-current={m === current ? 'true' : undefined}
           aria-label={VIEW_LABEL[m]} title={VIEW_LABEL[m]}
           className={`viewswitch__btn${m === current ? ' viewswitch__btn--on' : ''}`}>
           <ViewGlyph mode={m} />
@@ -152,6 +152,14 @@ function ViewSwitch({ tab, path }: { tab: Tab; path: string }) {
       ))}
     </div>
   );
+}
+
+/** The same address in another view: a search stays, an open panel closes. */
+function switchHref(path: string, params: URLSearchParams, view: ViewMode): string {
+  const next = new URLSearchParams(params.toString());
+  next.set('view', view);
+  next.delete('peek');
+  return `${path}?${next.toString()}`;
 }
 
 /** The small chevron Airtable puts after a name you can act on. */

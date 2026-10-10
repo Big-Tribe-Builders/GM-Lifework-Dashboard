@@ -41,6 +41,7 @@ export type LocalFixture = {
   quinbPosts?: unknown[];
   viewGroups?: unknown[];
   domainSettings?: unknown[];
+  upworkJobs?: unknown[];
 };
 
 let cached: LocalFixture | null | undefined;

@@ -32,7 +32,7 @@ import { columnsFor } from '@/lib/grid';
 export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: ViewOpts = {}): ReactNode {
   switch (domain.slug) {
     case 'clients': return clientsZone(domain, tab, b, q, view);
-    case 'upwork': return upworkZone(domain, tab, b, q);
+    case 'upwork': return upworkZone(domain, tab, b, q, view);
     case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b);
     case 'goal-navigator': return goalZone(domain, tab, b, view);
     case 'mailing': return mailingZone(domain, tab, b, view);

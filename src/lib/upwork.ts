@@ -152,3 +152,63 @@ export function shortDate(iso: string | null): string {
     day: 'numeric', month: 'short', year: 'numeric',
   }).format(d);
 }
+
+// ------------------------------------------------------------ the pipeline
+
+/**
+ * Upwork › Proposals: one row per job found on Upwork, after her Notion
+ * database "Upwork Pipeline" — the same fields, the same statuses, in her
+ * words.
+ */
+export type JobStatus =
+  | 'open' | 'proposal_draft' | 'approved' | 'posted' | 'read_by_client'
+  | 'free_consultation' | 'accepted' | 'declined' | 'moved_to_client_projects' | 'skipped';
+export const JOB_STATUS: Record<JobStatus, string> = {
+  open: 'Open', proposal_draft: 'Proposal draft', approved: 'Approved', posted: 'Posted', read_by_client: 'Read by client',
+  free_consultation: 'Free consultation', accepted: 'Accepted', declined: 'Declined', moved_to_client_projects: 'Moved to Client Projects', skipped: 'Skipped',
+};
+export const JOB_STATUSES = Object.keys(JOB_STATUS) as JobStatus[];
+export const JOB_TONE: Record<JobStatus, string> = {
+  open: 'sleeping', proposal_draft: 'sleeping', approved: 'contact', posted: 'active', read_by_client: 'active',
+  free_consultation: 'active', accepted: 'done', declined: 'archived', moved_to_client_projects: 'done', skipped: 'archived',
+};
+
+export type JobFit = 'strong' | 'possible' | 'skip';
+export const JOB_FIT: Record<JobFit, string> = { strong: 'Strong', possible: 'Possible', skip: 'Skip' };
+export const JOB_FITS = Object.keys(JOB_FIT) as JobFit[];
+
+export const JOB_PLATFORMS = ['Mighty Networks', 'Circle', 'Skool', 'Other'] as const;
+export const JOB_WORK_TYPES = ['Community build', 'Community management', 'Strategy', 'Automation', 'AI agent', 'App build', 'CRM', 'Course platform'] as const;
+
+/** Upwork takes a cover letter of at most this many characters. */
+export const COVER_LETTER_MAX = 5000;
+
+export type UpworkJob = {
+  id: string;
+  jobId: string | null;
+  title: string;
+  url: string | null;
+  description: string | null;
+  client: string | null;
+  country: string | null;
+  clientRating: number | null;
+  clientSpend: string | null;
+  paymentVerified: boolean | null;
+  budget: string | null;
+  proposalsAtScan: string | null;
+  postedOn: string | null;
+  foundOn: string;
+  platform: string | null;
+  workType: string[];
+  fit: JobFit | null;
+  whyItFits: string | null;
+  status: JobStatus;
+  proposal: string;
+  nextAction: string | null;
+  nextActionDate: string | null;
+  connectsSpent: number | null;
+  sentOn: string | null;
+  lastActivity: string | null;
+  notes: string | null;
+  updatedAt: string;
+};

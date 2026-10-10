@@ -2157,7 +2157,7 @@ a.dsettings__item { text-decoration: none; }
 .glist__form textarea { resize: vertical; line-height: 1.4; }
 .glist__formrow { display: flex; gap: 8px; }
 
-.gcard { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; box-shadow: 0 1px 0 rgb(20 22 28 / 0.16); border: 1px solid transparent; }
+.gcard { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); color: var(--ink); text-decoration: none; box-shadow: 0 1px 0 rgb(20 22 28 / 0.16); border: 1px solid transparent; }
 .gcard:hover { box-shadow: var(--shadow-hover); border-color: var(--hairline); }
 .gcard:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
 .gcard__labels { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -2283,6 +2283,26 @@ a.dsettings__item { text-decoration: none; }
 .board__years .chip:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
 .tl__legendname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl__empty { margin: 0; padding: 14px 12px; border-bottom: 1px solid var(--grid-line); color: var(--ink-soft); font-size: 13px; background: var(--surface); }
+
+/* Upwork › Proposals: the job pipeline. */
+.gcard__chip { padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; line-height: 1.5; }
+.gcard__chip--plain { background: var(--grey-100); color: var(--ink-soft); font-weight: 600; }
+.jobpanel__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; }
+.jobpanel .pfield .cell { height: 34px; display: flex; align-items: center; }
+.jobpanel .pfield select { width: 100%; height: 100%; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--ink); }
+.jobpanel__types { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; border: 0; }
+.jobpanel__types legend { margin-bottom: 6px; }
+.jobpanel__typename { font-size: 13px; padding: 2px 4px; }
+.jobpanel__head { display: flex; align-items: center; gap: 10px; }
+.jobpanel__count { margin-left: auto; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.jobpanel__count.is-bad { color: var(--brand-red-deep); font-weight: 600; }
+@media (max-width: 900px) { .jobpanel__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .jobpanel { width: 100vw; }
+  .jobpanel .peek__bar { flex-wrap: wrap; height: auto; min-height: var(--chrome-tool); padding: 6px 12px; row-gap: 6px; }
+  .jobpanel .peek__title { order: 1; flex-basis: 100%; white-space: normal; }
+  .jobpanel .peek__bar .btn { white-space: nowrap; }
+}
 
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so
