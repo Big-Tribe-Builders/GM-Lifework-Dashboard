@@ -42,7 +42,28 @@ export type MailData = {
   /** The env var that is missing before anything can be sent, or null. */
   resendMissing: string | null;
 };
-type Common = { settings?: Record<string, ColumnSetting>; accent?: string; store: string; peek?: string; base: string };
+type Common = {
+  settings?: Record<string, ColumnSetting>; accent?: string; store: string; peek?: string; base: string;
+  /** Shows one venture only (QuinB Community › Mails): its lists, templates, senders and mails. */
+  venture?: string;
+};
+
+/** The same data, narrowed to one venture. Sends stay whole; they hang off campaigns. */
+function scope(data: MailData, venture?: string): MailData {
+  if (!venture) return data;
+  const lists = data.lists.filter((l) => l.venture === venture);
+  const ids = new Set(lists.map((l) => l.id));
+  return {
+    ...data, lists, members: data.members.filter((m) => ids.has(m.listId)),
+    templates: data.templates.filter((t) => t.venture === venture), senders: data.senders.filter((s) => s.venture === venture),
+    campaigns: data.campaigns.filter((x) => x.venture === venture),
+  };
+}
+
+/** The venture column and field, unless the view is already one venture. */
+const ventureCol = <T extends { id: string; venture: string },>(table: MailTable, venture?: string): Column<T>[] =>
+  venture ? [] : [{ key: 'venture', label: 'Venture', type: 'select', width: 190, render: (r: T) => <VentureCell table={table} id={r.id} value={r.venture} /> }];
+const ventureField = (venture?: string): Field[] => (venture ? [] : [{ key: 'venture', placeholder: 'Venture', options: ventureOpts }]);
 
 // ------------------------------------------------------------------ cells
 
@@ -132,7 +153,8 @@ const nameOf = (p?: CrmEmail) => [p?.firstName, p?.lastName].filter(Boolean).joi
 
 // ------------------------------------------------------------------ lists
 
-export function Lists({ data, ...c }: Common & { data: MailData }) {
+export function Lists({ data: all, ...c }: Common & { data: MailData }) {
+  const data = scope(all, c.venture);
   const [selected, setSelected] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [pending, start] = useTransition();
@@ -146,7 +168,7 @@ export function Lists({ data, ...c }: Common & { data: MailData }) {
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" /></svg>
       </button>
     ) },
-    { key: 'venture', label: 'Venture', type: 'select', width: 190, render: (r) => <VentureCell table="mail_lists" id={r.id} value={r.venture} /> },
+    ...ventureCol<MailList>('mail_lists', c.venture),
     { key: 'name', label: 'List', type: 'text', width: 260, render: t('name', 'List') as never },
     { key: 'count', label: 'People', type: 'number', width: 90, numeric: true, render: (r) => <span className="cell">{r.memberCount}</span> },
     { key: 'description', label: 'Description', type: 'text', width: 420, render: t('description', 'Description') as never },
@@ -170,7 +192,7 @@ export function Lists({ data, ...c }: Common & { data: MailData }) {
 
   return (
     <div className="mailstack">
-      <AddRow table="mail_lists" fields={[{ key: 'venture', placeholder: 'Venture', options: ventureOpts }, { key: 'name', placeholder: 'List name' }, { key: 'description', placeholder: 'What this list is for', wide: true }]} label="+ Add list" />
+      <AddRow table="mail_lists" defaults={c.venture ? { venture: c.venture } : {}} fields={[...ventureField(c.venture), { key: 'name', placeholder: 'List name' }, { key: 'description', placeholder: 'What this list is for', wide: true }]} label="+ Add list" />
       {grid({ ...c, columns, rows: data.lists, rowKey: (r) => r.id, empty: 'No lists yet. Add the first one above, then click its arrow to pick who is on it.' })}
       {list ? (
         <section className="members">
@@ -204,12 +226,13 @@ function MemberBox({ listId, email, on }: { listId: string; email: string; on: b
 
 // -------------------------------------------------------------- templates
 
-export function Templates({ data, ...c }: Common & { data: MailData }) {
+export function Templates({ data: all, ...c }: Common & { data: MailData }) {
+  const data = scope(all, c.venture);
   const [editing, setEditing] = useState<MailTemplate | null>(null);
   const t = text('mail_templates');
   const styleOpts = (Object.keys(MAIL_STYLES) as MailStyle[]).map((k) => ({ value: k, label: MAIL_STYLES[k] }));
   const columns: Column<MailTemplate>[] = [
-    { key: 'venture', label: 'Venture', type: 'select', width: 190, render: (r) => <VentureCell table="mail_templates" id={r.id} value={r.venture} /> },
+    ...ventureCol<MailTemplate>('mail_templates', c.venture),
     { key: 'name', label: 'Template', type: 'text', width: 220, render: t('name', 'Template') as never },
     { key: 'subject', label: 'Subject', type: 'text', width: 320, render: t('subject', 'Subject') as never },
     { key: 'style', label: 'Style', type: 'select', width: 170, render: (r) => <Sel table="mail_templates" id={r.id} field="style" value={r.style} options={styleOpts} /> },
@@ -226,7 +249,7 @@ export function Templates({ data, ...c }: Common & { data: MailData }) {
   const live = editing ? data.templates.find((x) => x.id === editing.id) ?? null : null;
   return (
     <>
-      <AddRow table="mail_templates" fields={[{ key: 'venture', placeholder: 'Venture', options: ventureOpts }, { key: 'name', placeholder: 'Template name' }, { key: 'subject', placeholder: 'Subject line', wide: true }]} label="+ Add template" />
+      <AddRow table="mail_templates" defaults={c.venture ? { venture: c.venture } : {}} fields={[...ventureField(c.venture), { key: 'name', placeholder: 'Template name' }, { key: 'subject', placeholder: 'Subject line', wide: true }]} label="+ Add template" />
       {grid({ ...c, columns, rows: data.templates, rowKey: (r) => r.id, empty: 'No templates yet. Add one above, then Edit to write the body.' })}
       {live ? <TemplateEditor template={live} senders={data.senders} onClose={() => setEditing(null)} /> : null}
     </>
@@ -293,7 +316,8 @@ function TemplateEditor({ template, senders, onClose }: { template: MailTemplate
 
 // -------------------------------------------------------------- campaigns
 
-export function Campaigns({ data, kind, ...c }: Common & { data: MailData; kind: CampaignKind }) {
+export function Campaigns({ data: all, kind, ...c }: Common & { data: MailData; kind: CampaignKind }) {
+  const data = scope(all, c.venture);
   const t = text('mail_campaigns');
   const rows = data.campaigns.filter((x) => x.kind === kind).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const listOpts = data.lists.map((l) => ({ value: l.id, label: `${l.name} (${l.memberCount})` }));
@@ -312,9 +336,9 @@ export function Campaigns({ data, kind, ...c }: Common & { data: MailData; kind:
 
   const columns: Column<MailCampaign>[] = [
     { key: 'open', label: 'Open', type: 'text', width: 44, bare: true, render: (r) => <OpenArrow href={`${c.base}?peek=${r.id}`} what={r.name} /> },
-    { key: 'name', label: kind === 'sequence' ? 'Sequence' : 'Campaign', type: 'text', width: 240, render: t('name', 'Name') as never },
-    { key: 'venture', label: 'Venture', type: 'select', width: 190, render: (r) => <VentureCell table="mail_campaigns" id={r.id} value={r.venture} /> },
-    { key: 'list', label: 'List', type: 'select', width: 200, render: (r) => <Sel table="mail_campaigns" id={r.id} field="listId" value={r.listId} options={listOpts} blank="Pick a list" /> },
+    { key: 'name', label: kind === 'sequence' ? 'Sequence' : c.venture ? 'Mail' : 'Campaign', type: 'text', width: 240, render: t('name', 'Name') as never },
+    ...ventureCol<MailCampaign>('mail_campaigns', c.venture),
+    { key: 'list', label: c.venture ? 'Group' : 'List', type: 'select', width: 200, render: (r) => <Sel table="mail_campaigns" id={r.id} field="listId" value={r.listId} options={listOpts} blank="Pick a list" /> },
     ...(kind === 'broadcast'
       ? [{ key: 'template', label: 'Template', type: 'select', width: 200, render: (r: MailCampaign) => <Sel table="mail_campaigns" id={r.id} field="templateId" value={r.templateId} options={tplOpts} blank="Pick a template" /> } as Column<MailCampaign>]
       : [{ key: 'steps', label: 'Steps', type: 'number', width: 80, numeric: true, render: (r: MailCampaign) => <span className="cell">{stepsBy.get(r.id)?.length ?? 0}</span> } as Column<MailCampaign>]),
@@ -329,15 +353,27 @@ export function Campaigns({ data, kind, ...c }: Common & { data: MailData; kind:
   const open = c.peek ? rows.find((r) => r.id === c.peek) ?? null : null;
   return (
     <div className="mailstack">
-      {kind === 'broadcast' ? <Senders data={data} store={`${c.store}.senders`} accent={c.accent} /> : null}
-      <AddRow table="mail_campaigns" defaults={{ kind }} label={kind === 'sequence' ? '+ Add sequence' : '+ Add campaign'} fields={[
-        { key: 'venture', placeholder: 'Venture', options: ventureOpts }, { key: 'name', placeholder: kind === 'sequence' ? 'Sequence name' : 'Campaign name', wide: true },
-        { key: 'listId', placeholder: 'List', options: listOpts },
+      {c.venture ? (
+        <>
+          <details className="mailsec">
+            <summary><span className="grid2__foldname">Groups</span><span className="muted">{data.lists.length ? `${data.lists.length} group${data.lists.length === 1 ? '' : 's'} · the same lists as Mailing › Lists, ${c.venture} only` : `Who a mail goes to. The same lists as Mailing › Lists, ${c.venture} only.`}</span></summary>
+            <Lists data={all} {...c} store={`${c.store}.groups`} settings={undefined} peek={undefined} />
+          </details>
+          <details className="mailsec">
+            <summary><span className="grid2__foldname">Templates</span><span className="muted">{data.templates.length ? `${data.templates.length} template${data.templates.length === 1 ? '' : 's'} · subject and text, with {{first_name}} and {{personal}}` : 'The subject and the text of a mail, with {{first_name}} and {{personal}} filled in per person.'}</span></summary>
+            <Templates data={all} {...c} store={`${c.store}.templates`} settings={undefined} peek={undefined} />
+          </details>
+        </>
+      ) : null}
+      {kind === 'broadcast' ? <Senders data={data} store={`${c.store}.senders`} accent={c.accent} venture={c.venture} /> : null}
+      <AddRow table="mail_campaigns" defaults={{ kind, ...(c.venture ? { venture: c.venture } : {}) }} label={kind === 'sequence' ? '+ Add sequence' : c.venture ? '+ Add mail' : '+ Add campaign'} fields={[
+        ...ventureField(c.venture), { key: 'name', placeholder: kind === 'sequence' ? 'Sequence name' : c.venture ? 'What this mail is' : 'Campaign name', wide: true },
+        { key: 'listId', placeholder: c.venture ? 'Group' : 'List', options: listOpts },
         ...(kind === 'broadcast' ? [{ key: 'templateId', placeholder: 'Template', options: tplOpts }] : []),
         { key: 'senderId', placeholder: 'From', options: senderOpts },
       ]} />
-      {grid({ ...c, columns, rows, rowKey: (r) => r.id, empty: kind === 'sequence' ? 'No sequences yet. Add one above.' : 'No campaigns yet. Add one above.' })}
-      {kind === 'broadcast' ? <Suppressions data={data} store={`${c.store}.never`} accent={c.accent} /> : null}
+      {grid({ ...c, columns, rows, rowKey: (r) => r.id, empty: kind === 'sequence' ? 'No sequences yet. Add one above.' : c.venture ? 'No mails yet. Add one above: name it, pick the group, the template and who it is from.' : 'No campaigns yet. Add one above.' })}
+      {kind === 'broadcast' && !c.venture ? <Suppressions data={data} store={`${c.store}.never`} accent={c.accent} /> : null}
       {open ? <CampaignPanel campaign={open} data={data} sends={sendsBy.get(open.id) ?? []} steps={stepsBy.get(open.id) ?? []} closeHref={c.base} accent={c.accent} /> : null}
     </div>
   );
@@ -365,10 +401,10 @@ function WhenCell({ id, value }: { id: string; value: string | null }) {
   );
 }
 
-function Senders({ data, store, accent }: { data: MailData; store: string; accent?: string }) {
+function Senders({ data, store, accent, venture }: { data: MailData; store: string; accent?: string; venture?: string }) {
   const t = text('mail_senders');
   const columns: Column<MailSender>[] = [
-    { key: 'venture', label: 'Venture', type: 'select', width: 190, render: (r) => <VentureCell table="mail_senders" id={r.id} value={r.venture} /> },
+    ...ventureCol<MailSender>('mail_senders', venture),
     { key: 'fromName', label: 'From name', type: 'text', width: 180, render: t('fromName', 'From name') as never },
     { key: 'fromEmail', label: 'From address', type: 'text', width: 240, render: t('fromEmail', 'From address') as never },
     { key: 'replyTo', label: 'Reply to', type: 'text', width: 220, render: t('replyTo', 'Reply to') as never },
@@ -378,8 +414,8 @@ function Senders({ data, store, accent }: { data: MailData; store: string; accen
   return (
     <details className="mailsec" open={data.senders.length === 0}>
       <summary><span className="grid2__foldname">Senders</span><span className="muted">{data.senders.length === 0 ? 'Who the emails are from. Add one per venture; the domain must be verified in Resend.' : `${data.senders.length} sender${data.senders.length === 1 ? '' : 's'}`}</span></summary>
-      <AddRow table="mail_senders" label="+ Add sender" fields={[
-        { key: 'venture', placeholder: 'Venture', options: ventureOpts }, { key: 'fromName', placeholder: 'From name' }, { key: 'fromEmail', placeholder: 'from@yourdomain.com', type: 'email' },
+      <AddRow table="mail_senders" label="+ Add sender" defaults={venture ? { venture } : {}} fields={[
+        ...ventureField(venture), { key: 'fromName', placeholder: 'From name' }, { key: 'fromEmail', placeholder: 'from@yourdomain.com', type: 'email' },
         { key: 'replyTo', placeholder: 'Reply-to (optional)', type: 'email' }, { key: 'address', placeholder: 'Postal address for the footer', wide: true },
       ]} />
       <Grid rows={data.senders} columns={columns} rowKey={(r) => r.id} store={store} accent={accent} empty="No senders yet."
@@ -432,6 +468,7 @@ function CampaignPanel({ campaign, data, sends, steps, closeHref, accent }: {
   const [testStep, setTestStep] = useState<string>('');
   const [quote, setQuote] = useState(campaign.quote ?? '');
   useEffect(() => { setQuote(campaign.quote ?? ''); }, [campaign.quote]);
+  const [seeId, setSeeId] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -501,6 +538,12 @@ function CampaignPanel({ campaign, data, sends, steps, closeHref, accent }: {
     { key: 'email', label: 'Email', type: 'text', width: 230, render: (r) => <span className="cell">{r.email}</span> },
     { key: 'name', label: 'Name', type: 'text', width: 150, render: (r) => <span className="cell">{nameOf(person.get(r.email.toLowerCase())) || '—'}</span> },
     ...(isSeq ? [{ key: 'step', label: 'Step', type: 'number', width: 60, numeric: true, render: (r: MailSend) => <span className="cell">{r.stepId ? stepById.get(r.stepId)?.step ?? '?' : ''}</span> } as Column<MailSend>] : []),
+    { key: 'see', label: 'See', type: 'text', width: 64, bare: true, render: (r) => (
+      <button type="button" className={`grid2__open${r.id === seeId ? ' grid2__open--on' : ''}`} title="See this email" aria-label={`See the email to ${r.email}`}
+        onClick={() => setSeeId(r.id === seeId ? null : r.id)}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></svg>
+      </button>
+    ) },
     { key: 'personal', label: 'Personal line', type: 'text', width: 360, render: (r) => <EditableCell kind="text" value={r.personalLine} label={`Personal line for ${r.email}`} onSave={(v) => setPersonalLine(r.id, v)} /> },
     { key: 'status', label: 'Status', type: 'select', width: 140, render: (r) => <span className={`cell ${['bounced', 'complained', 'failed'].includes(r.status) ? 'is-bad' : ''}`}>{SEND_STATUS[r.status]}</span> },
     { key: 'when', label: 'When', type: 'date', width: 150, render: (r) => <span className="cell muted">{r.sentAt ? shortDate(r.sentAt) : r.scheduledFor ? isoToBrussels(r.scheduledFor).replace('T', ' ') : 'now'}</span> },
@@ -569,9 +612,61 @@ function CampaignPanel({ campaign, data, sends, steps, closeHref, accent }: {
         <section className="panelsec">
           <div className="dash__head"><span className="grid2__foldname">Recipients</span><span className="muted" style={{ fontSize: 12 }}>{sends.length ? summary(sends) : `Press “${isSeq ? 'Enrol the list' : 'Prepare recipients'}” to list everyone here, then write the personal line per person.`}</span></div>
           <Grid rows={sorted} columns={sendCols} rowKey={(r) => r.id} store="lifework.mailing.sends" accent={accent} empty="Nobody yet." />
+          {sorted.length ? (
+            <EmailPreview sends={sorted} at={Math.max(0, sorted.findIndex((x) => x.id === seeId))} onMove={(id) => setSeeId(id)} open={!!seeId}
+              onOpen={() => setSeeId(sorted[0].id)} onClose={() => setSeeId(null)}
+              templateFor={(x) => (x.stepId ? data.templates.find((t) => t.id === stepById.get(x.stepId!)?.templateId) : template) ?? null}
+              person={(x) => person.get(x.email.toLowerCase())} sender={sender ?? null} quote={quote} />
+          ) : null}
         </section>
       </div>
     </aside>
   );
 }
 
+
+// ---------------------------------------------------------------- preview
+
+/**
+ * Each email exactly as that person gets it: their name, their personal
+ * line, the quote, the footer. Walk through them one by one before sending.
+ * The unsubscribe link is the only part that is not real here.
+ */
+function EmailPreview({ sends, at, open, onOpen, onClose, onMove, templateFor, person, sender, quote }: {
+  sends: MailSend[]; at: number; open: boolean; onOpen: () => void; onClose: () => void; onMove: (id: string) => void;
+  templateFor: (s: MailSend) => MailTemplate | null; person: (s: MailSend) => CrmEmail | undefined; sender: MailSender | null; quote: string;
+}) {
+  if (!open) {
+    return (
+      <div className="seebar">
+        <button type="button" className="btn btn--ghost" onClick={onOpen}>See the emails one by one</button>
+        <span className="muted">Each email as that person gets it: name, personal line, quote, footer.</span>
+      </div>
+    );
+  }
+  const send = sends[at];
+  const t = templateFor(send);
+  const p = person(send);
+  const r = t ? render({
+    subject: t.subject, preheader: t.preheader, body: t.body, style: t.style,
+    recipient: { email: send.email, firstName: p?.firstName, lastName: p?.lastName, city: p?.city, personal: send.personalLine },
+    quote, sender: { fromName: sender?.fromName ?? '(no sender picked)', address: sender?.address }, unsubscribeUrl: '#',
+  }) : null;
+  return (
+    <div className="see">
+      <div className="see__bar">
+        <button type="button" className="btn btn--ghost btn--tiny" disabled={at <= 0} onClick={() => onMove(sends[at - 1].id)} aria-label="Previous email">‹</button>
+        <span className="see__count">Email {at + 1} of {sends.length}</span>
+        <button type="button" className="btn btn--ghost btn--tiny" disabled={at >= sends.length - 1} onClick={() => onMove(sends[at + 1].id)} aria-label="Next email">›</button>
+        <button type="button" className="btn btn--ghost btn--tiny see__close" onClick={onClose}>Close</button>
+      </div>
+      <dl className="facts see__head">
+        <dt>To</dt><dd>{[nameOf(p), `<${send.email}>`].filter(Boolean).join(' ')}</dd>
+        <dt>From</dt><dd>{sender ? `${sender.fromName} <${sender.fromEmail}>` : <span className="is-bad">no sender picked</span>}</dd>
+        <dt>Subject</dt><dd>{r ? r.subject || <span className="is-bad">empty</span> : <span className="is-bad">no template picked</span>}</dd>
+      </dl>
+      {!send.personalLine?.trim() ? <p className="note">No personal line for this person yet. Where the template says {'{{personal}}'}, nothing is written.</p> : null}
+      {r ? <iframe className="see__frame" title={`The email to ${send.email}`} srcDoc={r.html} sandbox="" /> : null}
+    </div>
+  );
+}

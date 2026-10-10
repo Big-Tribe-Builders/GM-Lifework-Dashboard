@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { EMAIL_RE } from '@/lib/mail';
 import { BANNER_BUCKET, POST_STATUSES, AUDIENCES, POST_KINDS } from '@/lib/quinb';
+import { answer } from '@/lib/mighty';
 
 /** Writes for the QuinB Community member list. */
 type Result = { error: string | null };
@@ -202,6 +203,20 @@ export async function removePostType(id: string): Promise<Result> {
   if (!db) return { error: 'Supabase is not configured.' };
   const { error } = await db.from('quinb_post_types').delete().eq('id', id);
   if (error) return { error: error.message };
+  touched();
+  return { error: null };
+}
+
+// ------------------------------------------------------------ the network
+
+/** Her answer in the community: a comment on the post, or a reply to one comment. */
+export async function answerInQuinb(postId: number, replyToId: number | null, text: string): Promise<Result> {
+  const v = text.trim();
+  if (!v) return { error: 'Write something first.' };
+  if (v.length > 10_000) return { error: 'That is longer than a comment can be.' };
+  if (!Number.isInteger(postId) || postId <= 0 || (replyToId != null && (!Number.isInteger(replyToId) || replyToId <= 0))) return { error: 'Unknown post or comment.' };
+  const r = await answer(postId, v, replyToId);
+  if (r.error) return r;
   touched();
   return { error: null };
 }

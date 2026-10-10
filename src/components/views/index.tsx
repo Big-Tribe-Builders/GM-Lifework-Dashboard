@@ -15,6 +15,8 @@ import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing
 import { About, Chapters } from '@/components/Book';
 import { Members } from '@/components/QuinbMembers';
 import { Plan, PostTypes, Posts } from '@/components/QuinbContent';
+import { CommentsTab, NewMembersTab } from '@/components/QuinbLive';
+import { todayIso } from '@/lib/calendar';
 import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
 import { columnsFor } from '@/lib/grid';
@@ -52,29 +54,43 @@ function bookZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNod
   );
 }
 
-/** QuinB Community › Members: loaded from the Mighty Networks export until the network can be read. */
+/**
+ * QuinB Community: Comments and New members read the network itself; Mails is
+ * the Mailing system narrowed to QuinB Academy; the rest is the content plan
+ * and the member list.
+ */
 function membersZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
   const store = `lifework.quinb-community.${tab.slug}.cols`;
+  const base = `/d/${domain.slug}/${tab.slug}`;
+  const today = todayIso();
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
-      {tab.slug === 'strategy' ? <Plan years={b.quinbYears} months={b.quinbMonths} weeks={b.quinbWeeks} types={b.quinbPostTypes} posts={b.quinbPosts} postsHref={`/d/${domain.slug}/posts`} />
-        : tab.slug === 'types' ? <PostTypes rows={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
-        : tab.slug === 'posts' ? <Posts rows={b.quinbPosts} types={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={`/d/${domain.slug}/${tab.slug}`} />
+      {tab.slug === 'comments' ? <CommentsTab />
+        : tab.slug === 'new-members' ? <NewMembersTab members={b.quinbMembers} store={store} accent={domain.accent} />
+        : tab.slug === 'upcoming' ? <Posts rows={b.quinbPosts.filter((p) => !!p.plannedFor && p.plannedFor >= today && p.status !== 'posted' && p.status !== 'cancelled')}
+            types={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={base}
+            empty="No posts to come. Posts with a post date from today on show here until they are posted." />
+        : tab.slug === 'mails' ? <Campaigns data={mailData(b)} kind="broadcast" venture="QuinB Academy" settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={base} />
+        : tab.slug === 'strategy' ? <Plan years={b.quinbYears} months={b.quinbMonths} weeks={b.quinbWeeks} types={b.quinbPostTypes} posts={b.quinbPosts} postsHref={`/d/${domain.slug}/posts`} />
+        : tab.slug === 'types' ? <PostTypes rows={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={base} />
+        : tab.slug === 'posts' ? <Posts rows={b.quinbPosts} types={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={base} />
         : <Members rows={b.quinbMembers} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} />}
     </Portal>
   );
 }
 
+/** Everything Mailing reads. On the server, so the panel can say exactly what is missing. */
+const mailData = (b: Bundle): MailData => ({
+  lists: b.mailLists, members: b.mailListMembers, templates: b.mailTemplates, senders: b.mailSenders,
+  campaigns: b.mailCampaigns, steps: b.mailSteps, sends: b.mailSends, suppressions: b.mailSuppressions,
+  emails: b.crmEmails, resendMissing: process.env.RESEND_API_KEY ? null : RESEND_ENV,
+});
+
 /** Mailing: lists over the CRM emails, templates, campaigns, sequences. */
 function mailingZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
   const store = `lifework.mailing.${tab.slug}.cols`;
   const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store, peek: view.peek, base: `/d/${domain.slug}/${tab.slug}` };
-  // Read on the server, so the panel can say exactly what is missing.
-  const data: MailData = {
-    lists: b.mailLists, members: b.mailListMembers, templates: b.mailTemplates, senders: b.mailSenders,
-    campaigns: b.mailCampaigns, steps: b.mailSteps, sends: b.mailSends, suppressions: b.mailSuppressions,
-    emails: b.crmEmails, resendMissing: process.env.RESEND_API_KEY ? null : RESEND_ENV,
-  };
+  const data = mailData(b);
   const body =
     tab.slug === 'templates' ? <Templates data={data} {...common} />
     : tab.slug === 'campaigns' ? <Campaigns data={data} kind="broadcast" {...common} />

@@ -293,8 +293,8 @@ function TypePanel({ type, closeHref }: { type: QuinbPostType; closeHref: string
 
 // ------------------------------------------------------------------ posts
 
-export function Posts({ rows, types, settings, accent, store, peek, base }: {
-  rows: QuinbPost[]; types: QuinbPostType[]; settings?: Record<string, ColumnSetting>; accent?: string; store: string; peek?: string; base: string;
+export function Posts({ rows, types, settings, accent, store, peek, base, empty = 'No posts yet. Add them here or from a day in the Content strategy.' }: {
+  rows: QuinbPost[]; types: QuinbPostType[]; settings?: Record<string, ColumnSetting>; accent?: string; store: string; peek?: string; base: string; empty?: string;
 }) {
   // Planned date first, undated ones last, then by title.
   const sorted = [...rows].sort((a, b) =>
@@ -331,7 +331,7 @@ export function Posts({ rows, types, settings, accent, store, peek, base }: {
         { key: 'postTypeId', placeholder: 'Daily post type', options: typeOpts },
       ]} />
       <Grid rows={sorted} columns={columns} rowKey={(r) => r.id} store={store} settings={settings} accent={accent}
-        onColumnSettings={(k, i) => saveGridColumn(store, k, i)} empty="No posts yet. Add them here or from a day in the Content strategy." />
+        onColumnSettings={(k, i) => saveGridColumn(store, k, i)} empty={empty} />
       {open ? <PostPanel key={open.id} post={open} type={openType} closeHref={base} /> : null}
     </div>
   );

@@ -2092,6 +2092,30 @@ main.portal {
 .notice__list { margin: 2px 0 0; padding-left: 18px; }
 .notice__list li { margin: 1px 0; }
 
+/* QuinB Community › Comments: what waits for an answer. */
+.tabnote { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); background: var(--surface); border-bottom: 1px solid var(--grid-line); }
+.inbox { list-style: none; margin: 0; padding: 0; background: var(--surface); }
+.inbox__item { padding: 12px 14px; border-bottom: 1px solid var(--grid-line); }
+.inbox__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: 13px; }
+.inbox__post { font-weight: 600; color: var(--ink-soft); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+.inbox__when { margin-left: auto; font-size: 12px; white-space: nowrap; }
+.inbox__quote { margin: 8px 0 0; padding: 4px 10px; border-left: 3px solid var(--grid-line); color: var(--muted); font-size: 12px; white-space: pre-wrap; }
+.inbox__text { margin: 8px 0 0; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.inbox__actions { margin-top: 10px; }
+.inbox__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.inbox__answer textarea { width: 100%; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 6px; font: inherit; font-size: 14px; resize: vertical; background: #fff; }
+.inbox__done { padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+.inbox__empty { margin: 0; padding: 24px 14px; color: var(--muted); font-size: 13px; background: var(--surface); }
+
+/* A campaign's emails, one by one, before they go. */
+.seebar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; }
+.see { margin-top: 12px; border: 1px solid var(--hairline); border-radius: 8px; padding: 10px 12px; background: var(--grey-50); }
+.see__bar { display: flex; align-items: center; gap: 6px; }
+.see__count { font-size: 13px; font-weight: 600; min-width: 110px; text-align: center; }
+.see__close { margin-left: auto; }
+.see__head { margin-top: 8px; }
+.see__frame { display: block; width: 100%; min-height: 520px; margin-top: 10px; border: 1px solid var(--hairline); border-radius: 6px; background: #f6f6f7; }
+
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so
    on — never the darker tab strip. Outside a zone it stays violet. */
