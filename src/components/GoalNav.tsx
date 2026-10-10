@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, type CSSProperties } from 'react';
 import Link from 'next/link';
 import type { YearGoal, QuarterGoal, ActionPoint, GoalStatus } from '@/lib/goals';
-import { VENTURES, GOAL_STATUS, GOAL_TONE, thisQuarter, progressOf, nextQuarter, quarterMonths, quarterLabel, ownersOf } from '@/lib/goals';
+import { VENTURES, GOAL_STATUS, GOAL_TONE, thisQuarter, quarterOf, progressOf, nextQuarter, quarterMonths, quarterLabel, ownersOf } from '@/lib/goals';
 import type { ColumnSetting } from '@/lib/grid';
 import { updateGoal, addGoal, removeGoal, type GoalTable } from '@/app/d/goals/actions';
 import { saveGridColumn, saveGroupColor } from '@/app/d/actions';
@@ -11,7 +11,8 @@ import { Grid, type Column, type Group } from '@/components/Grid';
 import { EditableCell } from '@/components/EditableCell';
 import { ConfirmDialog } from '@/components/ClientTable';
 import { shortDate } from '@/lib/upwork';
-import type { PaletteKey } from '@/lib/palette';
+import { PALETTE, type PaletteKey } from '@/lib/palette';
+import { quarterWeeks, quarterPos } from '@/lib/btb';
 import { Gallery, AddCard, Avatars, type GalleryList } from '@/components/Gallery';
 import { ColorPicker } from '@/components/ColorPicker';
 import { Field, CloseLink, usePanelKeys } from '@/components/panel';
@@ -21,7 +22,7 @@ import { Sel, Remove as RemoveButton } from '@/components/rowkit';
  * The Goal Navigator, after her Notion page.
  *
  *   Dashboard       this quarter: goals with progress, action points this week
- *   Roadmap         the board — ventures down, quarters across, goals as cards
+ *   Roadmap         the timeline of a quarter's action points, after the BTB roadmap, with the table under it
  *   Yearly goals    gallery (one list per year, after Trello) or grid folded by year
  *   Quarterly goals gallery (one list per quarter) or grid folded by quarter
  *   Action points   grid folded by quarter
@@ -401,7 +402,8 @@ export function Actions({ rows, goals, quarter, ...c }: Common & { rows: ActionP
   }));
   return (
     <>
-      <AddRow table="goal_actions" defaults={{ quarter: thisQuarter() }} fields={[
+      {/* Keyed by the quarter, so switching quarter on the Roadmap moves the add-row along. */}
+      <AddRow key={quarter ?? 'all'} table="goal_actions" defaults={{ quarter: quarter ?? thisQuarter() }} fields={[
         { key: 'quarter', placeholder: 'Quarter' }, { key: 'venture', placeholder: 'Venture', options: ventureOpts },
         { key: 'title', placeholder: 'Action point', wide: true }, { key: 'owner', placeholder: 'Who' }, { key: 'dueDate', placeholder: 'Due 2026-11-30' },
       ]} />
@@ -412,41 +414,132 @@ export function Actions({ rows, goals, quarter, ...c }: Common & { rows: ActionP
 
 // --------------------------------------------------------------- roadmap
 
-export function RoadmapBoard({ goals, actions }: { goals: QuarterGoal[]; actions: ActionPoint[] }) {
-  const years = [...new Set(goals.map((g) => Number(g.quarter.slice(0, 4))))].sort();
-  const [year, setYear] = useState<number>(years.includes(new Date().getUTCFullYear()) ? new Date().getUTCFullYear() : (years[0] ?? new Date().getUTCFullYear()));
-  const qs = [1, 2, 3, 4].map((n) => `${year}-Q${n}`);
+/**
+ * The colour of a quarterly goal on the roadmap, from the palette, in an
+ * order where neighbours differ clearly. Gray is kept for action points
+ * without a quarterly goal.
+ */
+const LANE_ORDER: PaletteKey[] = ['blue', 'orange', 'dark-green', 'pink', 'purple', 'yellow', 'red', 'light-green', 'brown'];
+const hexOf = (k: PaletteKey) => PALETTE.find((p) => p.key === k)!.hex;
+const laneColor = (i: number) => hexOf(LANE_ORDER[i % LANE_ORDER.length]);
+const NO_GOAL = hexOf('gray');
+const WEEK = 7 * 86_400_000;
+const shift = (iso: string, ms: number) => new Date(new Date(`${iso}T00:00:00Z`).getTime() + ms).toISOString().slice(0, 10);
+
+/**
+ * The roadmap (Giulia, 10 Oct 2026: like the Big Tribe Builders roadmap).
+ * One quarter at a time: every action point is a line, coloured by its
+ * quarterly goal, its bar running from the do date to the due date. With
+ * only one of the two, the bar is that one week. The action points of the
+ * quarter are in the table under it, where the dates are typed.
+ */
+export function Roadmap({ goals, actions, ...c }: Common & { goals: QuarterGoal[]; actions: ActionPoint[] }) {
+  const now = thisQuarter();
+  const quarters = [...new Set([...actions.map((a) => a.quarter), ...goals.map((g) => g.quarter), now])]
+    .filter((q) => /^\d{4}-Q[1-4]$/.test(q)).sort();
+  const [quarter, setQuarter] = useState(now);
+  const inQuarter = actions.filter((a) => a.quarter === quarter);
+  // The lanes: this quarter's goals, then any goal of another quarter that an
+  // action point here still hangs under. Gray only for no goal at all.
+  const byId = new Map(goals.map((g) => [g.id, g]));
+  const own = goals.filter((g) => g.quarter === quarter).sort((a, b) => a.venture.localeCompare(b.venture) || a.sortOrder - b.sortOrder);
+  const others = [...new Set(inQuarter.map((a) => a.quarterGoalId).filter((id): id is string => !!id && byId.has(id) && byId.get(id)!.quarter !== quarter))]
+    .map((id) => byId.get(id)!);
+  const mine = [...own, ...others];
+  const lane = new Map(mine.map((g, i) => [g.id, i]));
+  const loose = mine.length; // the lane for action points without a quarterly goal
+  const laneOf = (a: ActionPoint) => (a.quarterGoalId != null && lane.has(a.quarterGoalId) ? lane.get(a.quarterGoalId)! : loose);
+  const rows = inQuarter
+    .sort((a, b) => laneOf(a) - laneOf(b) || (a.doDate ?? a.dueDate ?? '9').localeCompare(b.doDate ?? b.dueDate ?? '9') || a.sortOrder - b.sortOrder);
+  const hasLoose = rows.some((r) => laneOf(r) === loose);
   return (
-    <div className="board">
+    <>
       <div className="board__years">
-        {(years.length ? years : [year]).map((y) => (
-          <button key={y} type="button" className={`chip${y === year ? ' chip--active' : ''}`} onClick={() => setYear(y)}>{y}</button>
+        {quarters.map((q) => (
+          <button key={q} type="button" className={`chip${q === quarter ? ' chip--active' : ''}`} aria-pressed={q === quarter} onClick={() => setQuarter(q)}>
+            {quarterLabel(q)}{q === now ? ' · now' : ''}
+          </button>
         ))}
-        <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Quarterly goals are added on the Quarterly goals tab.</span>
       </div>
-      <div className="board__grid">
-        <div className="board__corner" />
-        {qs.map((q) => <div key={q} className="board__q">{q.slice(5)}</div>)}
-        {VENTURES.map((v) => (
-          <div key={v} className={`board__row ${lane(v)}`} style={{ display: 'contents' }}>
-            <div className={`board__venture ${lane(v)}`}><span className="lane__dot" />{v}</div>
-            {qs.map((q) => (
-              <div key={q} className="board__cell">
-                {goals.filter((g) => g.venture === v && g.quarter === q).sort((a, b) => a.sortOrder - b.sortOrder).map((g) => {
-                  const p = progressOf(g, actions);
-                  return (
-                    <Link key={g.id} href={`/d/goal-navigator/quarters`} className={`board__card ${lane(v)} board__card--${g.status}`}>
-                      <span className="board__title">{g.title}</span>
-                      <span className="board__meta">{GOAL_STATUS[g.status]}{p == null ? '' : ` · ${Math.round(p * 100)} %`}</span>
-                      {p != null ? <span className="board__bar"><span style={{ width: `${p * 100}%` }} /></span> : null}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
+      <GoalTimeline quarter={quarter} rows={rows} legend={[
+        ...mine.map((g, i) => ({ key: g.id, label: g.quarter === quarter ? g.title : `${g.title} (${quarterLabel(g.quarter)})`, color: laneColor(i) })),
+        ...(hasLoose ? [{ key: 'none', label: 'No quarterly goal', color: NO_GOAL }] : []),
+      ]} colorOf={(a) => (laneOf(a) === loose ? NO_GOAL : laneColor(laneOf(a)))} />
+      <Actions rows={actions} goals={goals} quarter={quarter} {...c} />
+    </>
+  );
+}
+
+function GoalTimeline({ quarter, rows, legend, colorOf }: {
+  quarter: string; rows: ActionPoint[];
+  legend: { key: string; label: string; color: string }[];
+  colorOf: (a: ActionPoint) => string;
+}) {
+  const weeks = quarterWeeks(quarter);
+  // Today's line is placed in the browser only, so server and browser agree.
+  const [today, setToday] = useState<number | null>(null);
+  useEffect(() => {
+    const t = new Date().toISOString();
+    setToday(quarterOf(t) === quarter ? quarterPos(quarter, t) : null);
+  }, [quarter]);
+  if (!weeks.length) return null;
+  // The quarter's own first and last day (the 13 week columns end a day
+  // short of a 92-day quarter, so the calendar decides, not the columns).
+  const firstDay = (q: string) => `${q.slice(0, 4)}-${String((Number(q.slice(6)) - 1) * 3 + 1).padStart(2, '0')}-01`;
+  const startIso = firstDay(quarter);
+  const endIso = firstDay(nextQuarter(quarter));
+  return (
+    <div className="tl">
+      {legend.length ? (
+        <div className="tl__legend">
+          {legend.map((l) => (
+            <span key={l.key} className="lane tl__legenditem" style={{ '--lane': l.color } as CSSProperties} title={l.label}>
+              <span className="lane__dot" /><span className="tl__legendname">{l.label}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <div className="tl__head">
+        <div className="tl__label">{quarter}</div>
+        <div className="tl__weeks">
+          {weeks.map((w, i) => <div key={i} className="tl__week">{w.getUTCDate()}/{w.getUTCMonth() + 1}</div>)}
+          {today != null ? <div className="tl__today" style={{ left: `${today * 100}%` }} /> : null}
+        </div>
+      </div>
+      {rows.length === 0 ? <p className="tl__empty">No action points in {quarterLabel(quarter)} yet. Add them in the table below.</p> : null}
+      {rows.map((r) => {
+        const from = r.doDate ?? (r.dueDate ? shift(r.dueDate, -WEEK) : null);
+        const to = r.dueDate ?? (r.doDate ? shift(r.doDate, WEEK) : null);
+        // Dates wholly before or after the quarter are said in words, not
+        // drawn as a sliver at the edge that would look like the wrong week.
+        const first = [r.doDate, r.dueDate].filter((x): x is string => !!x).sort()[0];
+        const last = [r.doDate, r.dueDate].filter((x): x is string => !!x).sort().at(-1);
+        const span = first && last ? (last < startIso ? 'before' : first >= endIso ? 'after' : null) : null;
+        const a = quarterPos(quarter, from), b = quarterPos(quarter, to);
+        const lo = Math.min(a ?? 0, b ?? 1), hi = Math.max(a ?? 0, b ?? 1);
+        // At least a sliver wide, and always inside the track (the last day of
+        // a quarter sits at its very end).
+        const width = Math.max(0.02, hi - lo);
+        const left = Math.min(lo, 1 - width);
+        return (
+          <div key={r.id} className="tl__row" style={{ '--lane': colorOf(r) } as CSSProperties}>
+            <div className="tl__label" title={r.title}>
+              <span className="lane__dot" /><span className="tl__title">{r.title}</span>
+              {r.owner ? <span className="tl__owner">{r.owner}</span> : null}
+            </div>
+            <div className="tl__weeks">
+              {a == null && b == null ? <span className="tl__nodate">no dates yet</span>
+                : span === 'before' ? <span className="tl__nodate">← before this quarter ({shortDate(last ?? null)})</span>
+                : span === 'after' ? <span className="tl__nodate tl__nodate--end">after this quarter ({shortDate(first ?? null)}) →</span> : (
+                <div className={`tl__bar tl__bar--${r.status}`} title={`${r.doDate ? `Do ${shortDate(r.doDate)}` : ''}${r.doDate && r.dueDate ? ' · ' : ''}${r.dueDate ? `Due ${shortDate(r.dueDate)}` : ''} · ${GOAL_STATUS[r.status]}`}
+                  style={{ left: `${left * 100}%`, width: `${width * 100}%` }}>
+                  <span className="tl__fill" style={{ width: r.status === 'done' ? '100%' : '0%' }} />
+                </div>
+              )}
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

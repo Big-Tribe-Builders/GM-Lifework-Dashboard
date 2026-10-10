@@ -10,7 +10,7 @@ import { clientsZone } from '@/components/views/clients';
 import { upworkZone } from '@/components/views/upwork';
 import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
 import { Pulse } from '@/components/Pulse';
-import { Dashboard, RoadmapBoard, Years, Quarters, Actions, YearsGallery, QuartersGallery } from '@/components/GoalNav';
+import { Dashboard, Roadmap as GoalRoadmap, Years, Quarters, Actions, YearsGallery, QuartersGallery } from '@/components/GoalNav';
 import { colorsFor } from '@/lib/palette';
 import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
 import { About, Chapters } from '@/components/Book';
@@ -117,7 +117,7 @@ function goalZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNod
   const gallery = view.mode === 'gallery';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' });
   const body =
-    tab.slug === 'roadmap' ? <RoadmapBoard goals={b.goalQuarters} actions={b.goalActions} />
+    tab.slug === 'roadmap' ? <GoalRoadmap goals={b.goalQuarters} actions={b.goalActions} {...common} />
     : tab.slug === 'years' ? (gallery
       ? <YearsGallery rows={b.goalYears} quarters={b.goalQuarters} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
       : <Years rows={b.goalYears} colors={colors} grid={grid} {...common} />)

@@ -1910,7 +1910,8 @@ a.dsettings__item { text-decoration: none; }
 .tl__bar--done .tl__fill { background: var(--brand-green); }
 .tl__bar--parked { background: #e9eaec; }
 .tl__bar--parked .tl__fill { background: #b9bec6; }
-.tl__nodate { padding-left: 8px; line-height: 28px; color: var(--faint); font-style: italic; white-space: nowrap; }
+.tl__nodate { padding-left: 8px; line-height: 28px; color: var(--muted); font-style: italic; white-space: nowrap; }
+.tl__nodate--end { position: absolute; right: 8px; }
 .tl__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: #b9bec6; }
 .tl__dot--doing { background: var(--brand-green); }
 .tl__dot--done { background: var(--brand-green); opacity: .5; }
@@ -2272,6 +2273,16 @@ a.dsettings__item { text-decoration: none; }
 .navset__tabname { min-width: 0; padding: 2px 4px; border: 0; border-radius: 4px; background: transparent; font: inherit; font-size: 13px; color: var(--ink); }
 .navset__tabname:hover { background: var(--grey-100); }
 @media (max-width: 640px) { .navset__tabs { margin-left: 0; } }
+
+/* The Goal Navigator roadmap: legend names may be long goal titles. */
+.tl__legenditem { max-width: 320px; min-width: 0; }
+/* A narrow window scrolls the timeline sideways; header and rows keep the
+   same week columns, so the bars stay under their weeks. */
+.tl { overflow-x: auto; }
+.tl__head, .tl__row { min-width: 700px; grid-template-columns: 300px minmax(0, 1fr); }
+.board__years .chip:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
+.tl__legendname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl__empty { margin: 0; padding: 14px 12px; border-bottom: 1px solid var(--grid-line); color: var(--ink-soft); font-size: 13px; background: var(--surface); }
 
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so
