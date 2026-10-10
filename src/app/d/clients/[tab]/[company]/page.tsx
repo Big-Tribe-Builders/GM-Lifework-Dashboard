@@ -35,8 +35,8 @@ export default async function CompanyPage({
   if (!row) notFound();
 
   return (
-    <>
+    <div className={`accent-${domain.accent}`} style={{ display: 'contents' }}>
       {companyDetail(row, b)}
-    </>
+    </div>
   );
 }

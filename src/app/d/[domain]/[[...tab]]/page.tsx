@@ -45,8 +45,11 @@ export default async function DomainPage({
   const domain = withOverride(base, overrideMap(settings)[base.slug]);
 
   return (
-    <>
+    // The zone carries its colour, so everything inside (buttons, panels,
+    // dialogs) takes the same colour as the top bar of the header.
+    // display: contents keeps the page layout exactly as it was.
+    <div className={`accent-${domain.accent}`} style={{ display: 'contents' }}>
       {renderZone(domain, active, bundle, q, { peek, columns })}
-    </>
+    </div>
   );
 }

@@ -2091,3 +2091,9 @@ main.portal {
 
 .notice__list { margin: 2px 0 0; padding-left: 18px; }
 .notice__list li { margin: 1px 0; }
+
+/* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
+   bar of its zone's header — red in red zones, green in green ones, and so
+   on — never the darker tab strip. Outside a zone it stays violet. */
+.btn--primary { background: var(--accent, var(--brand-violet)); }
+.btn--primary:hover:not(:disabled) { background: var(--accent-deep, var(--brand-violet-deep)); }
