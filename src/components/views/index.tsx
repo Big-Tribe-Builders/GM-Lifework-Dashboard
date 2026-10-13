@@ -162,7 +162,8 @@ function gridZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts = {}): Rea
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
       <ZoneGrid domain={domain.slug} tab={tab.slug} blurb={tab.blurb} b={b}
-        view={{ mode: view.mode, colors: colorsFor(view.groupColors, grid), grid }} />
+        view={{ mode: view.mode, colors: colorsFor(view.groupColors, grid), grid,
+          groupColors: colorsFor(view.groupColors, `${domain.slug}/groups`) }} />
     </Portal>
   );
 }

@@ -30,6 +30,8 @@ export type Column<T> = {
   numeric?: boolean;
   /** A column of buttons: no field glyph, no name, no resize edge. */
   bare?: boolean;
+  /** Keeps its width: no resize edge (Vibe Coding's square tick column). */
+  fixed?: boolean;
   /** An icon in the header instead of the field glyph and name; the name is
       then its tooltip and what a screen reader hears. */
   glyph?: ReactNode;
@@ -54,7 +56,7 @@ export type Group<T> = {
 
 export function Grid<T>({
   rows = [], columns, rowKey, store, empty = 'Nothing here.', groups, rowClass,
-  settings = {}, onColumnSettings, accent,
+  settings = {}, onColumnSettings, accent, numbered = true,
 }: {
   rows?: T[];
   columns: Column<T>[];
@@ -71,6 +73,8 @@ export function Grid<T>({
   onColumnSettings?: (key: string, input: { label: string; icon: FieldType }) => Promise<{ error: string | null }>;
   /** The zone's colour, so what is inside the grid (inputs, dialogs) uses it. */
   accent?: string;
+  /** The record number in the first cell; off where a list carries its own order (Vibe Coding › Focus). */
+  numbered?: boolean;
 }) {
   const { widths, resize } = useColumnWidths(store, columns.map((c) => c.width));
   const total = widths.reduce((a, b) => a + b, 0);
@@ -90,14 +94,14 @@ export function Grid<T>({
       return <tr><td colSpan={columns.length + 1} className="grid2__empty">{none}</td></tr>;
     }
     return list.map((row, n) => (
-      <tr key={rowKey(row)} className={rowClass?.(row)}>
+      <tr key={rowKey(row)} className={rowClass?.(row)} data-key={rowKey(row)}>
         {columns.map((c, i) => (
           <td
             key={c.key}
             className={[c.numeric ? 'grid2__num' : '', c.bare ? 'grid2__bare' : '']
               .filter(Boolean).join(' ') || undefined}
           >
-            {i === 0 ? <span className="grid2__rownum">{n + 1}</span> : null}
+            {i === 0 && numbered ? <span className="grid2__rownum">{n + 1}</span> : null}
             {c.render(row)}
           </td>
         ))}
@@ -107,7 +111,7 @@ export function Grid<T>({
   }
 
   return (
-    <div className={accent ? `grid2 accent-${accent}` : 'grid2'}>
+    <div className={['grid2', accent ? `accent-${accent}` : '', numbered ? '' : 'grid2--plain'].filter(Boolean).join(' ')}>
       <div className="grid2__scroll" ref={scroller}>
         {/* The table is 100% wide with a minimum of its columns, and carries a
             trailing filler cell. That is what makes every rule run the whole
@@ -126,7 +130,7 @@ export function Grid<T>({
                     .filter(Boolean).join(' ') || undefined}
                   aria-label={c.bare ? c.label : undefined}
                 >
-                  {i === 0 ? <span className="grid2__check" aria-hidden="true" /> : null}
+                  {i === 0 && numbered ? <span className="grid2__check" aria-hidden="true" /> : null}
                   {c.bare ? null : c.glyph ? (
                     <span className="grid2__field grid2__field--glyph" title={labelOf(c)}>
                       {c.glyph}
@@ -148,7 +152,7 @@ export function Grid<T>({
                       <span className="grid2__fieldname">{labelOf(c)}</span>
                     </span>
                   )}
-                  {c.bare ? null : <ResizeHandle onResize={(dx) => resize(i, dx)} />}
+                  {c.bare || c.fixed ? null : <ResizeHandle onResize={(dx) => resize(i, dx)} />}
                 </th>
               ))}
               <th className="grid2__filler" aria-hidden="true" />

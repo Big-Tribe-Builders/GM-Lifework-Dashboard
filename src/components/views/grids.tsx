@@ -183,8 +183,8 @@ const PROJECT_COLS: Column<CodeProject>[] = [
 // you"), one field with Status now, the last action, and the branch and the
 // framework (kept in the table, not important at this moment).
 
-/** Her session list's group (Giulia, 13 Oct 2026: "Group", not "Client"). */
-const GROUP_COL: Column<CodeProject> = { key: 'client', label: 'Group', type: 'select', width: 160, render: (p) => text(p.client) };
+/** Her session list's group (Giulia, 13 Oct 2026: "Group / Client"). */
+const GROUP_COL: Column<CodeProject> = { key: 'client', label: 'Group / Client', type: 'select', width: 170, render: (p) => text(p.client) };
 
 /** "Working on": a hammer, drawn in the header and on a card. */
 const HAMMER = (
@@ -195,13 +195,15 @@ const HAMMER = (
 );
 
 /** The projects, folded by client the way her session list groups them. */
-function ProjectsGrid({ rows, store, empty, onStage, error, sync }: {
+function ProjectsGrid({ rows, store, empty, onStage, error, sync, colors, grid }: {
   rows: CodeProject[];
   store: string;
   empty: string;
   onStage: (p: CodeProject, v: ProjectStage) => void;
   error: string | null;
   sync: ProjectsSync | null;
+  colors: Record<string, PaletteKey>;
+  grid: string;
 }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const columns = [PROJECT_COLS[0], stageColumn(onStage), ...PROJECT_COLS.slice(1)];
@@ -209,12 +211,13 @@ function ProjectsGrid({ rows, store, empty, onStage, error, sync }: {
     key: client,
     head: <span className="grid2__foldname">{client}</span>,
     tone: 'grey',
+    ...groupFold(client, colors, grid),
     rows: list,
     open: !closed[client],
     onToggle: () => setClosed((c) => ({ ...c, [client]: !c[client] })),
   }));
   return (
-    <>
+    <div className="mailstack">
       <ProjectsBar error={error} sync={sync} />
       <Grid
         columns={columns}
@@ -223,22 +226,23 @@ function ProjectsGrid({ rows, store, empty, onStage, error, sync }: {
         store={store}
         empty={empty}
       />
-    </>
+    </div>
   );
 }
 
 /**
- * Vibe Coding › Building (Giulia, 13 Oct 2026): the projects per group, the
- * way her session list groups them, each group in its own order of priority,
- * 1 first. A tick for what she is working on now, and a switch between all
- * of them and only those.
+ * Vibe Coding › Active projects (Giulia, 13 Oct 2026; was Building): every
+ * project with the status Building, per group the way her session list
+ * groups them, with the hammer to tick what she is working on now. A ticked
+ * project goes to Focus, at the bottom of her order there.
  */
 type Focus = { onFocus: (p: CodeProject, on: boolean) => void; onNumbers: (numbers: { p: CodeProject; n: number | null }[]) => void };
 const ONLY = 'lifework.apps.building.only';
 
-function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error, sync }: Focus & {
+function ActiveList({ rows, store, empty, onStage, onFocus, error, sync, colors, grid }: {
   rows: CodeProject[]; store: string; empty: string; error: string | null; sync: ProjectsSync | null;
-  onStage: (p: CodeProject, v: ProjectStage) => void;
+  colors: Record<string, PaletteKey>; grid: string;
+  onStage: (p: CodeProject, v: ProjectStage) => void; onFocus: Focus['onFocus'];
 }) {
   const [only, setOnly] = useState(false);
   const [closed, setClosed] = useState<Record<string, boolean>>({});
@@ -246,54 +250,17 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error, 
   useEffect(() => { try { setOnly(localStorage.getItem(ONLY) === '1'); } catch { /* private mode */ } }, []);
   const pick = (v: boolean) => { setOnly(v); try { localStorage.setItem(ONLY, v ? '1' : '0'); } catch { /* private mode */ } };
 
-  // Each group in its own order: numbered first (1, 2, 3 …), then the rest by name.
-  const byGroup = byClient(rows).map(([group, list]) => {
-    const all = [...list].sort(byPriority);
-    return { group, all, shown: only ? all.filter((p) => p.workingOn) : all };
-  });
-  const groupOf = new Map(byGroup.flatMap((g) => g.all.map((p) => [p.sessionId, g] as const)));
+  const byGroup = byClient(rows).map(([group, list]) => ({ group, shown: only ? list.filter((p) => p.workingOn) : list }));
   const now = rows.filter((p) => p.workingOn).length;
 
-  // A group numbered 1, 2, 3 … as it reads; only the numbers that change are written.
-  const renumber = (order: CodeProject[]) => onNumbers(order.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])));
-  // Move one place among what is shown of its group.
-  function move(p: CodeProject, dir: -1 | 1) {
-    const g = groupOf.get(p.sessionId);
-    if (!g) return;
-    const other = g.shown[g.shown.indexOf(p) + dir];
-    if (!other) return;
-    const rest = g.all.filter((x) => x !== p);
-    const at = rest.indexOf(other) + (dir === 1 ? 1 : 0);
-    renumber([...rest.slice(0, at), p, ...rest.slice(at)]);
-  }
-  // A typed number puts the project in that place in its group. An emptied
-  // one drops it to the group's projects without a number, and the numbered
-  // ones close up.
-  function place(p: CodeProject, n: number | null) {
-    const g = groupOf.get(p.sessionId);
-    if (!g) return;
-    const rest = g.all.filter((x) => x !== p);
-    if (n === null) {
-      const numbered = rest.filter((x) => x.priority != null);
-      onNumbers([...numbered.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])), ...(p.priority == null ? [] : [{ p, n: null }])]);
-      return;
-    }
-    const at = Math.min(n, rest.length + 1) - 1;
-    renumber([...rest.slice(0, at), p, ...rest.slice(at)]);
-  }
-
   const columns: Column<CodeProject>[] = [
-    { key: 'now', label: 'Working on', type: 'check', width: 84, glyph: HAMMER, render: (p) => (
+    // Square: 32 for the row number, 32 for the tick, as tall as a row (Giulia, 13 Oct 2026).
+    { key: 'now', label: 'Working on', type: 'check', width: 64, fixed: true, glyph: HAMMER, render: (p) => (
       <span className="flagcell">
         <input type="checkbox" className="flagcell__box" checked={!!p.workingOn} aria-label={`Working on ${p.name}`}
           onChange={(e) => onFocus(p, e.target.checked)} />
       </span>
     ) },
-    { key: 'priority', label: 'Priority', type: 'number', width: 140, render: (p) => {
-      const shown = groupOf.get(p.sessionId)?.shown ?? [];
-      const i = shown.indexOf(p);
-      return <PriorityCell p={p} canUp={i > 0} canDown={i < shown.length - 1} onMove={(d) => move(p, d)} onSet={(n) => place(p, n)} />;
-    } },
     PROJECT_COLS[0],
     GROUP_COL,
     stageColumn(onStage),
@@ -304,6 +271,7 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error, 
     key: g.group,
     head: <span className="grid2__foldname">{g.group}</span>,
     tone: 'grey',
+    ...groupFold(g.group, colors, grid),
     rows: g.shown,
     open: !closed[g.group],
     onToggle: () => setClosed((c) => ({ ...c, [g.group]: !c[g.group] })),
@@ -322,9 +290,105 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error, 
   );
 }
 
-/** Projects on the board and in the table: by group, then in her order. */
-const byGroupThenPriority = (a: CodeProject, b: CodeProject) =>
-  (a.client ?? 'Other').localeCompare(b.client ?? 'Other') || byPriority(a, b);
+/**
+ * Vibe Coding › Focus (Giulia, 13 Oct 2026): what she is working on now,
+ * the projects with the hammer ticked, in her order, 1 first. A line moves
+ * by its handle (≡): drag it to its place, or, on the handle, press arrow
+ * up or down. The list is then numbered 1, 2, 3 … as it reads.
+ */
+function FocusList({ rows, store, onNumbers, error, sync }: {
+  rows: CodeProject[]; store: string; error: string | null; sync: ProjectsSync | null; onNumbers: Focus['onNumbers'];
+}) {
+  const list = [...rows].sort(byPriority);
+  // The line being dragged, and where it would land: before or after another line.
+  const [drag, setDrag] = useState<{ id: string; over: string | null; after: boolean } | null>(null);
+
+  const renumber = (order: CodeProject[]) => onNumbers(order.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])));
+  function place(p: CodeProject, target: CodeProject, after: boolean) {
+    const rest = list.filter((x) => x !== p);
+    const at = rest.indexOf(target) + (after ? 1 : 0);
+    if (at < 0) return;
+    renumber([...rest.slice(0, at), p, ...rest.slice(at)]);
+  }
+  function step(p: CodeProject, dir: -1 | 1) {
+    const other = list[list.indexOf(p) + dir];
+    if (other) place(p, other, dir === 1);
+  }
+
+  const columns: Column<CodeProject>[] = [
+    { key: 'order', label: 'Order', type: 'number', width: 76, fixed: true, render: (p) => (
+      <span className="focusorder">
+        <button type="button" className="focusorder__handle" data-handle-for={p.sessionId}
+          aria-label={`Move ${p.name}: drag, or press arrow up or down`} title="Drag to move"
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDrag({ id: p.sessionId, over: null, after: false });
+          }}
+          onPointerMove={(e) => {
+            if (drag?.id !== p.sessionId) return;
+            const row = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('tr[data-key]');
+            const key = row?.dataset.key ?? null;
+            if (!row || !key || key === p.sessionId) { setDrag({ id: p.sessionId, over: null, after: false }); return; }
+            const r = row.getBoundingClientRect();
+            setDrag({ id: p.sessionId, over: key, after: e.clientY > r.top + r.height / 2 });
+          }}
+          onPointerUp={() => {
+            const target = drag?.over ? list.find((x) => x.sessionId === drag.over) : undefined;
+            if (target) place(p, target, drag!.after);
+            setDrag(null);
+          }}
+          onPointerCancel={() => setDrag(null)}
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+            e.preventDefault();
+            step(p, e.key === 'ArrowUp' ? -1 : 1);
+            keepHandleFocus(p.sessionId);
+          }}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M3 5h10M3 8h10M3 11h10" /></svg>
+        </button>
+        <span className="focusorder__num">{p.priority ?? '—'}</span>
+      </span>
+    ) },
+    PROJECT_COLS[0],
+    GROUP_COL,
+    PROJECT_COLS.find((c) => c.key === 'live')!,
+  ];
+  const lineClass = (p: CodeProject) =>
+    drag?.id === p.sessionId ? 'focusrow--lifted'
+    : drag?.over === p.sessionId ? (drag.after ? 'focusrow--after' : 'focusrow--before')
+    : undefined;
+  return (
+    <div className={`mailstack focuslist${drag ? ' focuslist--dragging' : ''}`}>
+      <ProjectsBar error={error} sync={sync} />
+      <Grid columns={columns} rows={list} rowKey={(p) => p.sessionId} store={store} numbered={false} rowClass={lineClass}
+        empty="Nothing in Focus yet. Tick the hammer of a project in Active projects and it arrives here." />
+    </div>
+  );
+}
+
+/** A line that moved is drawn again in its new place; its handle keeps the keyboard focus. */
+const keepHandleFocus = (id: string) => requestAnimationFrame(() => {
+  const at = document.activeElement;
+  if (at && at !== document.body && at.getAttribute('data-handle-for') === id) return;
+  document.querySelector<HTMLElement>(`[data-handle-for="${CSS.escape(id)}"]`)?.focus();
+});
+
+/**
+ * A group's fold (a client block) in its colour, with the dot to pick it
+ * (Giulia, 13 Oct 2026). Saved once for the space, so a group has the same
+ * colour on Building, Live and Archived.
+ */
+function groupFold(group: string, colors: Record<string, PaletteKey>, grid: string) {
+  return {
+    tint: colors[group] ?? null,
+    tools: <ColorPicker value={colors[group] ?? null} label={`Colour of ${group}`} onPick={(v) => saveGroupColor(grid, group, v)} />,
+  };
+}
+
+/** Projects on the board and in the table: by group, then by name. */
+const byGroupThenName = (a: CodeProject, b: CodeProject) =>
+  (a.client ?? 'Other').localeCompare(b.client ?? 'Other') || a.name.localeCompare(b.name);
 
 /**
  * Vibe Coding › Stages (Giulia, 13 Oct 2026): every project by stage, a
@@ -336,15 +400,15 @@ function Stages({ rows, mode, colors, grid, store, onStage, error, sync }: {
   onStage: (p: CodeProject, v: ProjectStage) => void; error: string | null; sync: ProjectsSync | null;
 }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
-  const inStage = (s: ProjectStage) => rows.filter((p) => p.status === s).sort(byGroupThenPriority);
+  const inStage = (s: ProjectStage) => rows.filter((p) => p.status === s).sort(byGroupThenName);
   if (mode === 'kanban') {
     const lists: KanbanList<CodeProject>[] = BOARD_STAGES.map((s) => ({ key: s, title: STAGE_LABEL[s], items: inStage(s) }));
     return (
-      <>
+      <div className="mailstack">
         <ProjectsBar error={error} sync={sync} />
         <Kanban grid={grid} lists={lists} colors={colors} label="Projects by stage" itemKey={(p) => p.sessionId}
           card={(p) => <ProjectCard p={p} onStage={onStage} />} />
-      </>
+      </div>
     );
   }
   const groups: Group<CodeProject>[] = BOARD_STAGES.map((s) => ({
@@ -359,11 +423,11 @@ function Stages({ rows, mode, colors, grid, store, onStage, error, sync }: {
     empty: 'Nothing in this stage.',
   }));
   return (
-    <>
+    <div className="mailstack">
       <ProjectsBar error={error} sync={sync} />
       <Grid columns={[PROJECT_COLS[0], GROUP_COL, stageColumn(onStage), ...PROJECT_COLS.slice(1)]}
         groups={groups} rowKey={(p) => p.sessionId} store={store} />
-    </>
+    </div>
   );
 }
 
@@ -386,52 +450,6 @@ function ProjectCard({ p, onStage }: { p: CodeProject; onStage: (p: CodeProject,
         {p.liveUrl ? <a className="gcard__badge grid2__link" href={p.liveUrl} target="_blank" rel="noreferrer" aria-label={`${p.name} live`}>Live ↗</a> : null}
       </span>
     </>
-  );
-}
-
-/** The priority number, typed in place, with arrows to move a place up or down. */
-function PriorityCell({ p, canUp, canDown, onMove, onSet }: {
-  p: CodeProject; canUp: boolean; canDown: boolean; onMove: (dir: -1 | 1) => void; onSet: (n: number | null) => void;
-}) {
-  // What she is typing; null when she is not, and the box shows the saved number.
-  const [draft, setDraft] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-  // A row that changes place is lifted out of the page and put back, which
-  // drops the keyboard focus. Give it back, to the other arrow if this one is
-  // now at the end.
-  const keep = (el: HTMLElement | null) => requestAnimationFrame(() => {
-    if (!el?.isConnected || document.activeElement === el) return;
-    if (el instanceof HTMLButtonElement && el.disabled) (el.parentElement?.querySelector<HTMLElement>('button:not(:disabled)') ?? input.current)?.focus();
-    else el.focus();
-  });
-  // Clicking away saves only what she typed. Enter always counts, even on the
-  // number already there: it puts the project ahead of one that shares it.
-  const commit = (enter = false) => {
-    if (draft === null && !enter) return;
-    const v = (draft ?? (p.priority == null ? '' : String(p.priority))).trim();
-    setDraft(null);
-    const n = v === '' ? null : Number(v);
-    if (n !== null && (!Number.isInteger(n) || n < 1 || n > 9999)) return;
-    onSet(n);
-  };
-  return (
-    <span className="prio">
-      <input ref={input} className="prio__num" inputMode="numeric" value={draft ?? (p.priority == null ? '' : String(p.priority))} placeholder="—"
-        aria-label={`Priority of ${p.name}`}
-        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))} onBlur={() => commit()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); commit(true); keep(input.current); }
-          if (e.key === 'Escape') { e.preventDefault(); setDraft(null); }
-        }} />
-      <button type="button" className="prio__arrow" disabled={!canUp} aria-label={`Move ${p.name} up`} title="Move up"
-        onClick={(e) => { const el = e.currentTarget; onMove(-1); keep(el); }}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 10 4-4 4 4" /></svg>
-      </button>
-      <button type="button" className="prio__arrow" disabled={!canDown} aria-label={`Move ${p.name} down`} title="Move down"
-        onClick={(e) => { const el = e.currentTarget; onMove(1); keep(el); }}>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-      </button>
-    </span>
   );
 }
 
@@ -474,8 +492,9 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
   tab: string;
   blurb: string;
   b: Bundle;
-  /** For a tab with a Kanban: which view, the colours she gave its lists, and where they are saved. */
-  view?: { mode?: ViewMode; colors?: Record<string, PaletteKey>; grid?: string };
+  /** For a tab with a Kanban: which view, the colours she gave its lists, and where they are saved;
+      and the colours she gave the groups (clients), shared by every project tab. */
+  view?: { mode?: ViewMode; colors?: Record<string, PaletteKey>; grid?: string; groupColors?: Record<string, PaletteKey> };
 }): ReactNode {
   const store = `lifework.${domain}.${tab}.cols`;
   // Her changes land here first, so a row changes the moment she picks —
@@ -485,6 +504,8 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
   const [writeError, setWriteError] = useState<string | null>(null);
   const projects = b.codeProjects.map(
     (p) => (staged[p.sessionId] ? { ...p, ...staged[p.sessionId] } : p));
+  // Focus: the projects she is working on now, unless put away.
+  const inFocus = projects.filter((p) => p.workingOn && !PUT_AWAY.includes(p.status));
   // Writes go one after the other, so a quick second change never lands
   // before the first and leaves the older value in the database.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -527,11 +548,25 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
     if (failed.length) {
       undo(failed);
       setWriteError(errors.find(Boolean)!);
+      // A stage that went back moves its project back: its dropdown keeps the focus there too.
+      for (const c of failed) if ('status' in c.local) keepStageFocus(c.p.sessionId);
     }
   }
   const moveStage = (p: CodeProject, v: ProjectStage) => write([{ p, local: { status: v }, column: { status: v } }]);
   const focus: Focus = {
-    onFocus: (p, on) => write([{ p, local: { workingOn: on }, column: { working_on: on } }]),
+    // Ticked: it arrives in Focus at the bottom of her order. Unticked: it
+    // leaves Focus and its place, and the others close up to 1, 2, 3 ….
+    onFocus: (p, on) => {
+      const others = inFocus.filter((x) => x.sessionId !== p.sessionId).sort(byPriority);
+      if (on) {
+        const n = Math.max(0, ...others.map((x) => x.priority ?? 0)) + 1;
+        return write([{ p, local: { workingOn: true, priority: n }, column: { working_on: true, priority: n } }]);
+      }
+      return write([
+        { p, local: { workingOn: false, priority: null }, column: { working_on: false, priority: null } },
+        ...others.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, local: { priority: i + 1 }, column: { priority: i + 1 } }])),
+      ]);
+    },
     onNumbers: (numbers) => write(numbers.map(({ p, n }) => ({ p, local: { priority: n }, column: { priority: n } }))),
   };
   // The open work of this domain. Inlined rather than imported from the data
@@ -579,9 +614,12 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
         empty="Nothing is tied to a campaign." />;
 
     // ---------------------------------------------------------------- apps
+    case 'apps/focus':
+      return <FocusList rows={inFocus} store={store} onNumbers={focus.onNumbers} error={writeError} sync={b.projectsSync} />;
     case 'apps/building':
-      return <BuildingList rows={projects.filter((p) => p.status === 'building')}
-        store={store} onStage={moveStage} {...focus} error={writeError} sync={b.projectsSync}
+      return <ActiveList rows={projects.filter((p) => p.status === 'building')}
+        store={store} onStage={moveStage} onFocus={focus.onFocus} error={writeError} sync={b.projectsSync}
+        colors={view.groupColors ?? {}} grid={`${domain}/groups`}
         empty="No projects loaded. They come from the code_projects table." />;
     case 'apps/stages':
       return <Stages rows={projects} mode={view.mode ?? 'kanban'} colors={view.colors ?? {}} grid={view.grid ?? `${domain}/${tab}`}
@@ -589,10 +627,12 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
     case 'apps/live':
       return <ProjectsGrid rows={projects.filter((p) => p.status === 'running')}
         store={store} onStage={moveStage} error={writeError} sync={b.projectsSync}
+        colors={view.groupColors ?? {}} grid={`${domain}/groups`}
         empty="Nothing Running yet. Set a project's Status to Running and it moves here." />;
     case 'apps/archived':
       return <ProjectsGrid rows={projects.filter((p) => PUT_AWAY.includes(p.status))}
         store={store} onStage={moveStage} error={writeError} sync={b.projectsSync}
+        colors={view.groupColors ?? {}} grid={`${domain}/groups`}
         empty="Nothing closed or archived. Set a project's Status to Closed or Archived to put it away here." />;
     case 'apps/workers':
       return pending(['Worker', 'Building', 'Waiting on', 'Last seen'],

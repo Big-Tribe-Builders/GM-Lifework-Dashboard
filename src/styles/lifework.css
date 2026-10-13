@@ -2337,13 +2337,6 @@ a.dsettings__item { text-decoration: none; }
 @keyframes refresh-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .refresh__btn[aria-busy="true"] svg { animation: none; } }
 .refresh__error { flex-basis: 100%; text-align: right; max-width: none; white-space: normal; }
-.prio { display: inline-flex; align-items: center; gap: 2px; }
-.prio__num { width: 46px; height: 26px; padding: 0 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
-.prio__num:focus-visible, .prio__arrow:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
-.prio__arrow { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); cursor: pointer; }
-.prio__arrow svg { width: 14px; height: 14px; }
-.prio__arrow:hover:not(:disabled) { background: var(--grey-100); color: var(--ink); }
-.prio__arrow:disabled { opacity: .3; cursor: default; }
 
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so
@@ -2355,11 +2348,14 @@ a.dsettings__item { text-decoration: none; }
    the box under it the tick, with a rule between the row number and the box. */
 .hammer { width: 16px; height: 16px; flex: none; }
 .grid2__field--glyph { justify-content: center; width: 100%; color: var(--grid-head-ink); }
-.buildlist .grid2__table tr:not(.grid2__fold) > :first-child { padding-left: 40px; }
+.buildlist .grid2__table tr:not(.grid2__fold) > :first-child { padding-left: var(--grid-row); padding-right: 0; }
 .buildlist .grid2__table tr:not(.grid2__fold) > :first-child::after {
-  content: ''; position: absolute; left: 40px; top: 0; bottom: 0;
+  content: ''; position: absolute; left: var(--grid-row); top: 0; bottom: 0;
   border-left: 1px solid var(--grid-line); pointer-events: none;
 }
+/* Both squares as tall as a row: the number and the header's box centred in the first. */
+.buildlist .grid2__rownum { left: 0; width: var(--grid-row); }
+.buildlist .grid2__check { left: calc((var(--grid-row) - 14px) / 2); }
 
 /* Vibe Coding › Stages: a card holds its stage dropdown and its links, so it
    is not one big link; the stage reads as a small control at its foot. */
@@ -2367,3 +2363,20 @@ a.dsettings__item { text-decoration: none; }
 .gcard__stage { height: 26px; padding: 0 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); font: inherit; font-size: 12px; color: var(--ink); cursor: pointer; }
 .gcard__stage:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
 .gcard__now { color: var(--ink-soft); }
+
+/* A grid without record numbers: the first field starts where the others do. */
+.grid2--plain .grid2__table td:first-child,
+.grid2--plain .grid2__table th:first-child { padding-left: 8px; }
+
+/* Vibe Coding › Focus: a line moves by its handle (≡), and its number is its place. */
+.focusorder { display: inline-flex; align-items: center; gap: 6px; height: 100%; }
+.focusorder__handle { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); cursor: grab; touch-action: none; }
+.focusorder__handle:hover { background: var(--grey-100); color: var(--ink); }
+.focusorder__handle:active { cursor: grabbing; }
+.focusorder__handle:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.focusorder__handle svg { width: 15px; height: 15px; }
+.focusorder__num { min-width: 1.5em; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+.focuslist tr.focusrow--lifted td { opacity: .45; }
+.focuslist tr.focusrow--before td { box-shadow: inset 0 2px 0 var(--accent, var(--brand-violet)); }
+.focuslist tr.focusrow--after td { box-shadow: inset 0 -2px 0 var(--accent, var(--brand-violet)); }
+.focuslist--dragging { user-select: none; cursor: grabbing; }
