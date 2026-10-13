@@ -34,7 +34,15 @@ export type CodeProject = {
   updatedAt: string | null;
   sessionUrl: string;
   status: ProjectStage;
+  /** Ticked: she is working on it now (Vibe Coding › Building). */
+  workingOn?: boolean;
+  /** Her order of priority, 1 first; none yet means after the numbered ones. */
+  priority?: number | null;
 };
+
+/** The priority order: numbered first (1, 2, 3 …), then the rest by name. */
+export const byPriority = (a: CodeProject, b: CodeProject) =>
+  (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name);
 
 /** The sidebar's order: her clients as she groups them there. */
 export const byClient = (rows: CodeProject[]) => {

@@ -185,14 +185,16 @@ export const DOMAINS: Domain[] = [
   },
   {
     slug: 'apps',
-    label: 'Applications',
+    // Renamed from Applications (Giulia, 13 Oct 2026): it sounded like applying for a job.
+    label: 'Vibe Coding',
     group: 'Assets',
     icon: 'rocket',
     accent: 'red',
     blurb: 'Everything you and the team have shipped, and whether it is still up.',
     tabs: [
       { slug: 'live', label: 'Live', blurb: 'What is deployed right now, and its health.' },
-      { slug: 'building', label: 'Building', blurb: 'In flight — branches, worktrees and open gates.' },
+      { slug: 'building', label: 'Building', blurb: 'In flight, in your order of priority, with what you are working on now.',
+        help: 'What it is: every project with the status Building, as one priority list: 1 first, then 2, and so on. Projects without a number yet come after the numbered ones.\n\nHow we work with it: tick "Working on" for the projects you are on now, and use "Working on" at the top to see only those, or "All" to see everything. Change the order with the arrows next to the number, or type a number to put a project in that place; the whole list is then numbered 1, 2, 3 … in the order you see it. Empty the number to take a project out of the order. Status moves a project to Live or Archived.' },
       { slug: 'archived', label: 'Archived', blurb: 'Done with, kept for the record.' },
       { slug: 'workers', label: 'Workers', blurb: 'Who is building what, and what is waiting on you.' },
     ],

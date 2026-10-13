@@ -2304,6 +2304,18 @@ a.dsettings__item { text-decoration: none; }
   .jobpanel .peek__bar .btn { white-space: nowrap; }
 }
 
+/* Vibe Coding › Building: the priority list. */
+.buildbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--grid-line); }
+.buildbar .chip:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
+.buildbar__error { flex: 0 1 auto; max-width: 480px; }
+.prio { display: inline-flex; align-items: center; gap: 2px; }
+.prio__num { width: 46px; height: 26px; padding: 0 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
+.prio__num:focus-visible, .prio__arrow:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.prio__arrow { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.prio__arrow svg { width: 14px; height: 14px; }
+.prio__arrow:hover:not(:disabled) { background: var(--grey-100); color: var(--ink); }
+.prio__arrow:disabled { opacity: .3; cursor: default; }
+
 /* Rule (Giulia, 10 Oct 2026): a primary button takes the colour of the top
    bar of its zone's header — red in red zones, green in green ones, and so
    on — never the darker tab strip. Outside a zone it stays violet. */

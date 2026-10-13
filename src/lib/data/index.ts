@@ -82,7 +82,7 @@ export const getGridColumns = () =>
 export const getViewGroups = () =>
   readTable<ViewGroup>('view_groups_api', localRows<ViewGroup>('viewGroups') ?? []);
 
-// The code projects behind Applications: one row per Claude Code
+// The code projects behind Vibe Coding: one row per Claude Code
 // session, loaded from the session list. No seed; the local fixture serves
 // the same purpose it does for clients.
 //
@@ -94,13 +94,16 @@ export const getViewGroups = () =>
 export const getCodeProjects = async () => {
   const base = await readTable<CodeProject>(
     'code_projects_api', localRows<CodeProject>('codeProjects') ?? []);
-  const stage = await readTable<{ sessionId: string; status: CodeProject['status'] }>(
+  const stage = await readTable<{ sessionId: string; status: CodeProject['status']; workingOn?: boolean; priority?: number | null }>(
     'code_projects_status_api', []);
-  const by = new Map(stage.rows.map((s) => [s.sessionId, s.status]));
+  const by = new Map(stage.rows.map((s) => [s.sessionId, s]));
   return {
     ...base,
     error: base.error ?? (base.source === 'supabase' ? stage.error : null),
-    rows: base.rows.map((p) => ({ ...p, status: by.get(p.sessionId) ?? p.status ?? 'building' })),
+    rows: base.rows.map((p) => {
+      const s = by.get(p.sessionId);
+      return { ...p, status: s?.status ?? p.status ?? 'building', workingOn: s?.workingOn ?? p.workingOn ?? false, priority: s?.priority ?? p.priority ?? null };
+    }),
   };
 };
 
