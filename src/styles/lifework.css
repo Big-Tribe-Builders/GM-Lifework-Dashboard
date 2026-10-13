@@ -2380,3 +2380,20 @@ a.dsettings__item { text-decoration: none; }
 .focuslist tr.focusrow--before td { box-shadow: inset 0 2px 0 var(--accent, var(--brand-violet)); }
 .focuslist tr.focusrow--after td { box-shadow: inset 0 -2px 0 var(--accent, var(--brand-violet)); }
 .focuslist--dragging { user-select: none; cursor: grabbing; }
+
+/* The toolbar search, the way Notion has it (Giulia, 13 Oct 2026): a
+   magnifier; a click opens the field, and the lists on the page filter as
+   she types. See ToolbarSearch.tsx and src/lib/search.ts. */
+.tsearch__btn { display: inline-grid; place-items: center; flex: none; width: 30px; height: 28px; margin-left: 4px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.tsearch__btn:hover { background: var(--grey-100); color: var(--ink); }
+.tsearch__btn:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.tsearch__btn svg, .tsearch > svg { width: 15px; height: 15px; flex: none; stroke-width: 1.8; }
+.tsearch { display: inline-flex; align-items: center; gap: 6px; flex: 0 1 240px; min-width: 120px; height: 28px; margin-left: 4px; padding: 0 4px 0 9px; border: 1px solid var(--hairline); border-radius: 7px; background: var(--surface); color: var(--faint); animation: tsearch-open .14s ease-out; }
+.tsearch:focus-within { border-color: var(--accent, var(--brand-violet)); }
+.tsearch__input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink); }
+.tsearch__clear { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.tsearch__clear:hover { background: var(--grey-100); color: var(--ink); }
+.tsearch__clear svg { width: 12px; height: 12px; }
+@keyframes tsearch-open { from { opacity: 0; transform: scaleX(.85); transform-origin: right; } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tsearch { animation: none; } }
+@media (max-width: 640px) { .tsearch { flex-basis: 150px; } }

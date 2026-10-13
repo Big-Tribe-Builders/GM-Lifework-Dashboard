@@ -5,6 +5,7 @@ import { useColumnWidths, ResizeHandle } from '@/components/table';
 import { FieldIcon } from '@/components/FieldIcon';
 import { ColumnDialog } from '@/components/ColumnDialog';
 import { useScreenFit } from '@/components/useScreenFit';
+import { useSearch, useSearchable, searchWords, matches } from '@/lib/search';
 import type { FieldType, ColumnSetting } from '@/lib/grid';
 
 export type { FieldType } from '@/lib/grid';
@@ -88,6 +89,19 @@ export function Grid<T>({
   const scroller = useRef<HTMLDivElement>(null);
   useScreenFit(scroller);
 
+  // The toolbar search: only the rows holding every word, in any field. A
+  // fold opens while she searches, and one with nothing in it is left out.
+  const { q, server } = useSearch();
+  useSearchable();
+  const words = server ? [] : searchWords(q);
+  const searching = words.length > 0;
+  const hit = (row: T) => matches(row, words);
+  const shown = searching ? rows.filter(hit) : rows;
+  const folds = groups && searching
+    ? groups.map((g) => ({ ...g, rows: g.rows.filter(hit), open: true })).filter((g) => g.rows.length > 0)
+    : groups;
+  const none = searching ? `Nothing matches “${q.trim()}”.` : empty;
+
   /** The rows of one run — the whole table, or one fold of it. */
   function body(list: T[], none: string) {
     if (list.length === 0) {
@@ -158,7 +172,7 @@ export function Grid<T>({
               <th className="grid2__filler" aria-hidden="true" />
             </tr>
           </thead>
-          {groups ? groups.map((g) => (
+          {folds && folds.length > 0 ? folds.map((g) => (
             <tbody key={g.key} className="grid2__group">
               <tr className={['grid2__fold', g.tone ? `grid2__fold--${g.tone}` : '', g.tint ? `tinted tint-${g.tint}` : ''].filter(Boolean).join(' ')}>
                 <td colSpan={columns.length + 1}>
@@ -182,7 +196,7 @@ export function Grid<T>({
               </tr>
               {g.open ? body(g.rows, g.empty ?? empty) : null}
             </tbody>
-          )) : <tbody>{body(rows, empty)}</tbody>}
+          )) : <tbody>{body(folds ? [] : shown, none)}</tbody>}
         </table>
       </div>
       {editing && onColumnSettings ? (

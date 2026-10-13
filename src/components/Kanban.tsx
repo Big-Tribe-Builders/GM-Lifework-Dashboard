@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from 'reac
 import Link from 'next/link';
 import { saveGroupColor } from '@/app/d/actions';
 import { useScreenFit } from '@/components/useScreenFit';
+import { useSearch, useSearchable, searchWords, matches } from '@/lib/search';
 import { ColorPicker } from '@/components/ColorPicker';
 import { tintClass, paletteFor, type PaletteKey } from '@/lib/palette';
 
@@ -57,9 +58,14 @@ export function Kanban<T>({ grid, lists, colors, itemKey, href, card, label }: {
   // Always in view: the board fits the screen, a long list scrolls its own cards.
   const board = useRef<HTMLDivElement>(null);
   useScreenFit(board);
+  // The toolbar search: each list keeps only the cards holding every word.
+  const { q, server } = useSearch();
+  useSearchable();
+  const words = server ? [] : searchWords(q);
   return (
     <div className="kanban" role="region" aria-label={label} ref={board}>
-      {lists.map((l) => {
+      {lists.map((list) => {
+        const l = words.length ? { ...list, items: list.items.filter((it) => matches(it, words)) } : list;
         const color = colors[l.key] ?? null;
         return (
           <section key={l.key} className={`glist${color ? ` tinted ${tintClass(color)}` : ''}`} aria-label={l.title}>

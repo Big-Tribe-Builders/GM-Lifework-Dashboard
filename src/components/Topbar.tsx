@@ -11,12 +11,12 @@ import { Tabs } from '@/components/Tabs';
 import { ClientsBar } from '@/components/ClientsBar';
 import { EmailsBar } from '@/components/EmailsBar';
 import { TabHelp } from '@/components/TabHelp';
-import { ZoneSearch } from '@/components/ZoneSearch';
+import { ToolbarSearch } from '@/components/ToolbarSearch';
 
 type Pin = { id: string; name: string; url: string };
 
-/** Zones whose body is a table the toolbar search can filter. */
-const SEARCHABLE = new Set(['clients', 'upwork']);
+/** Zones that search on the server (they look in more than the rows show); the rest filter in the page. */
+const SERVER_SEARCH = new Set(['clients', 'upwork']);
 
 /**
  * The chrome above a zone, three rows, after Airtable.
@@ -75,11 +75,9 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
           <Caret />
           <TabHelp tab={tab} domainLabel={domain.label} />
           <div className="chrome__spacer" />
-          {SEARCHABLE.has(domain.slug) ? (
-            <Suspense fallback={null}>
-              <ZoneSearch placeholder={`Search ${tab.label.toLowerCase()}`} />
-            </Suspense>
-          ) : null}
+          <Suspense fallback={null}>
+            <ToolbarSearch server={SERVER_SEARCH.has(domain.slug)} label={tab.label.toLowerCase()} />
+          </Suspense>
           {isClients && tab.slug === 'all' ? <Suspense fallback={null}><ClientsBar part="add" /></Suspense> : null}
           {isClients && tab.slug === 'emails' ? <EmailsBar /> : null}
           {(tab.views?.length ?? 0) > 1 ? (
