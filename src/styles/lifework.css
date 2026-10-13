@@ -1257,12 +1257,13 @@ button.row {
 /* Always in view (Giulia, 13 Oct 2026), on every table: the header row and
    the sideways scrollbar never leave the screen. The table scrolls inside
    itself and is never taller than the screen under the chrome, so its header
-   sticks at its top and its scrollbar sits at its bottom. Grid.tsx sets
-   --grid-fit to the room left under the table, so on a page that is one
-   table the table ends at the bottom of the screen and the page stays put. */
+   sticks at its top and its scrollbar sits at its bottom. useScreenFit.ts
+   sets --screen-fit to the room left under the table, so on a page that is
+   one table the table ends at the bottom of the screen and the page stays
+   put. The Kanban boards follow the same rule (.kanban, further down). */
 .grid2__scroll {
   overflow: auto;
-  max-height: var(--grid-fit, calc(100dvh - var(--chrome-h)));
+  max-height: var(--screen-fit, calc(100dvh - var(--chrome-h)));
   scrollbar-width: auto;
   scrollbar-color: #c3c6cd var(--grid-canvas);
 }
@@ -2151,8 +2152,12 @@ a.dsettings__item { text-decoration: none; }
    lists unless she gives one a colour from the palette (studiolo-theme.css).
    See src/components/Kanban.tsx.
    ------------------------------------------------------------------------ */
-.kanban { display: flex; align-items: flex-start; gap: 12px; padding: 16px; overflow-x: auto; min-height: 420px; }
-.glist { flex: 0 0 300px; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 14px; background: #e9ecf0; }
+.kanban { display: flex; align-items: flex-start; gap: 12px; padding: 16px; overflow-x: auto; overflow-y: hidden; box-sizing: border-box; min-height: 240px; }
+/* Always in view, as the tables: the board is fitted to the screen
+   (useScreenFit.ts), and a long list scrolls its own cards, so every list and
+   the board's sideways scrollbar stay in reach. */
+.kanban { height: var(--screen-fit, calc(100dvh - var(--chrome-h))); }
+.glist { flex: 0 0 300px; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 14px; background: #e9ecf0; max-height: 100%; min-height: 0; box-sizing: border-box; }
 .glist.tinted { background: rgb(var(--tint) / var(--tint-bg)); }
 .glist.tinted .glist__title { color: var(--tint-ink); }
 .glist__head { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 2px 2px 0 6px; }
@@ -2161,7 +2166,7 @@ a.dsettings__item { text-decoration: none; }
 .glist.tinted .glist__count, .glist.tinted .glist__sub { color: var(--tint-ink); }
 .glist__now { padding: 1px 8px; border-radius: 9999px; background: var(--accent-deep, var(--brand-violet-deep)); color: #fff; font-size: 11px; font-weight: 700; }
 .glist__spacer { flex: 1; }
-.glist__cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.glist__cards { list-style: none; margin: -3px; padding: 3px; display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
 .glist__add { display: block; width: 100%; padding: 8px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .glist__add:hover { background: rgb(20 22 28 / 0.07); color: var(--ink); }
 .glist__add:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: -2px; }
@@ -2321,6 +2326,17 @@ a.dsettings__item { text-decoration: none; }
 .buildbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--grid-line); }
 .buildbar .chip:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
 .buildbar__error { flex: 0 1 auto; max-width: 480px; }
+.buildbar__chips { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.buildbar__spacer { flex: 1; }
+/* Refresh, on the right of the bar: when the list was last brought up to date, and the button. */
+.refresh { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 10px; min-width: 0; }
+.refresh__when { font-size: 12px; color: var(--ink-soft); }
+.refresh__btn { display: inline-flex; align-items: center; gap: 6px; }
+.refresh__btn svg { width: 14px; height: 14px; flex: none; }
+.refresh__btn[aria-busy="true"] svg { animation: refresh-spin 1.1s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .refresh__btn[aria-busy="true"] svg { animation: none; } }
+.refresh__error { flex-basis: 100%; text-align: right; max-width: none; white-space: normal; }
 .prio { display: inline-flex; align-items: center; gap: 2px; }
 .prio__num { width: 46px; height: 26px; padding: 0 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
 .prio__num:focus-visible, .prio__arrow:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }

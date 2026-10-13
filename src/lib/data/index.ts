@@ -20,7 +20,7 @@ import type { DomainOverride, CollectionOrder } from '@/lib/nav';
 import type { ViewGroup } from '@/lib/palette';
 import type { UpworkLead, UpworkInvoice, UpworkJob } from '@/lib/upwork';
 import type { ColumnSetting } from '@/lib/grid';
-import type { CodeProject } from '@/lib/projects';
+import type { CodeProject, ProjectsSync } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import type { Book, Chapter, QuinbMember } from '@/lib/book';
@@ -95,6 +95,10 @@ export const getViewGroups = () =>
 // reads as Running, so the page is right before and after the SQL has run.
 const stageOf = (v: string | null | undefined): CodeProject['status'] =>
   (v === 'live' ? 'running' : (v as CodeProject['status'] | null | undefined) ?? 'building');
+
+// When Refresh last brought the list up to date (0022). Not counted as a
+// failed read before 0022 has run: the page then says it has not run yet.
+export const getProjectsSync = () => readTable<ProjectsSync>('code_projects_sync_api', []);
 
 export const getCodeProjects = async () => {
   const base = await readTable<CodeProject>(

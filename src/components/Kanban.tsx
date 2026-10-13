@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import Link from 'next/link';
 import { saveGroupColor } from '@/app/d/actions';
+import { useScreenFit } from '@/components/useScreenFit';
 import { ColorPicker } from '@/components/ColorPicker';
 import { tintClass, paletteFor, type PaletteKey } from '@/lib/palette';
 
@@ -53,8 +54,11 @@ export function Kanban<T>({ grid, lists, colors, itemKey, href, card, label }: {
   /** What the lists hold, for screen readers: 'Yearly goals'. */
   label: string;
 }) {
+  // Always in view: the board fits the screen, a long list scrolls its own cards.
+  const board = useRef<HTMLDivElement>(null);
+  useScreenFit(board);
   return (
-    <div className="kanban" role="region" aria-label={label}>
+    <div className="kanban" role="region" aria-label={label} ref={board}>
       {lists.map((l) => {
         const color = colors[l.key] ?? null;
         return (

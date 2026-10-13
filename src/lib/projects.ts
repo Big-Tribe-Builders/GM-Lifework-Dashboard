@@ -54,6 +54,9 @@ export type CodeProject = {
   priority?: number | null;
 };
 
+/** The last time the list was brought up to date with her Claude Code sessions (0022). */
+export type ProjectsSync = { syncedAt: string; seen: number; added: number; updated: number };
+
 /** The priority order: numbered first (1, 2, 3 …), then the rest by name. */
 export const byPriority = (a: CodeProject, b: CodeProject) =>
   (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER) || a.name.localeCompare(b.name);

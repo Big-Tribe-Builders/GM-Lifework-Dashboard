@@ -2,7 +2,7 @@ import {
   getTasks, getApps, getBrainSources, getVoiceRules,
   getContent, getCourses, getGoals, getSignals,
   getCompanies, getContacts, getClientApps, getCrmEmails,
-  getUpworkLeads, getUpworkInvoices, getUpworkJobs, getCodeProjects,
+  getUpworkLeads, getUpworkInvoices, getUpworkJobs, getCodeProjects, getProjectsSync,
   getBtbPlan, getBtbExperiments, getBtbPlaybook, getPulseDismissed,
   getYearGoals, getQuarterGoals, getActionPoints,
   getMailLists, getMailListMembers, getMailTemplates, getMailSenders, getMailCampaigns, getMailSteps, getMailSends, getMailSuppressions,
@@ -16,7 +16,7 @@ import type {
 } from '@/lib/types';
 import type { Company, Contact, ClientApp, CrmEmail } from '@/lib/crm';
 import type { UpworkLead, UpworkInvoice, UpworkJob } from '@/lib/upwork';
-import type { CodeProject } from '@/lib/projects';
+import type { CodeProject, ProjectsSync } from '@/lib/projects';
 import type { PlanItem, Experiment, PlaybookEntry } from '@/lib/btb';
 import type { YearGoal, QuarterGoal, ActionPoint } from '@/lib/goals';
 import type { MailList, MailListMember, MailTemplate, MailSender, MailCampaign, MailStep, MailSend, MailSuppression } from '@/lib/mail';
@@ -66,6 +66,8 @@ export type Bundle = {
 
   /** The code projects: one per Claude Code session. */
   codeProjects: CodeProject[];
+  /** When Refresh last brought them up to date; null before it has run. */
+  projectsSync: ProjectsSync | null;
 
   /** Big Tribe Builders' plan. */
   btbPlan: PlanItem[];
@@ -110,6 +112,7 @@ export async function loadAll(): Promise<Bundle> {
     goalYears, goalQuarters, goalActions,
     mailLists, mailListMembers, mailTemplates, mailSenders, mailCampaigns, mailSteps, mailSends, mailSuppressions,
     book, chapters, quinbMembers, quinbPosts, quinbYears, quinbMonths, quinbWeeks, quinbPostTypes,
+    projectsSync,
   ] = await Promise.all([
     getTasks(), getApps(), getBrainSources(), getVoiceRules(),
     getContent(), getCourses(), getGoals(), getSignals(),
@@ -119,6 +122,7 @@ export async function loadAll(): Promise<Bundle> {
     getYearGoals(), getQuarterGoals(), getActionPoints(),
     getMailLists(), getMailListMembers(), getMailTemplates(), getMailSenders(), getMailCampaigns(), getMailSteps(), getMailSends(), getMailSuppressions(),
     getBook(), getChapters(), getQuinbMembers(), getQuinbPosts(), getQuinbYears(), getQuinbMonths(), getQuinbWeeks(), getQuinbPostTypes(),
+    getProjectsSync(),
   ]);
 
   // Every read that failed, each message once, so one missing table cannot hide another.
@@ -157,6 +161,7 @@ export async function loadAll(): Promise<Bundle> {
     upworkInvoices: upworkInvoices.rows,
     upworkJobs: upworkJobs.rows,
     codeProjects: codeProjects.rows,
+    projectsSync: projectsSync.rows[0] ?? null,
     btbPlan: btbPlan.rows,
     btbExperiments: btbExperiments.rows,
     btbPlaybook: btbPlaybook.rows,

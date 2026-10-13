@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Bundle } from '@/lib/data/bundle';
-import { byClient, byPriority, STAGES, STAGE_LABEL, BOARD_STAGES, PUT_AWAY, type CodeProject, type ProjectStage } from '@/lib/projects';
+import { byClient, byPriority, STAGES, STAGE_LABEL, BOARD_STAGES, PUT_AWAY, type CodeProject, type ProjectStage, type ProjectsSync } from '@/lib/projects';
 import { getSupabase } from '@/lib/supabase';
 import type {
   Task, AppLink, BrainSource, VoiceRule, ContentItem, Course, GoalPeriod, Signal,
@@ -10,6 +10,7 @@ import type {
 import { ROOTS } from '@/lib/types';
 import { Grid, type Column, type Group } from '@/components/Grid';
 import { Kanban, type KanbanList } from '@/components/Kanban';
+import { ProjectsRefresh } from '@/components/ProjectsRefresh';
 import { ColorPicker } from '@/components/ColorPicker';
 import { saveGroupColor } from '@/app/d/actions';
 import type { PaletteKey } from '@/lib/palette';
@@ -114,6 +115,33 @@ const SIGNAL_COLS: Column<Signal>[] = [
 ];
 
 /**
+ * A stage change draws the project again somewhere else (another fold, another
+ * list), which drops the keyboard focus; give it back to its dropdown there,
+ * so arrowing through the stages keeps going.
+ */
+const keepStageFocus = (id: string) => requestAnimationFrame(() => {
+  const at = document.activeElement;
+  if (at && at !== document.body) return;
+  document.querySelector<HTMLElement>(`[data-stage-for="${CSS.escape(id)}"]`)?.focus();
+});
+
+/**
+ * The bar above every project tab: what that tab puts there (Building: All /
+ * Working on), why a change did not save, and on the right Refresh, with when
+ * the list was last brought up to date with Claude Code.
+ */
+function ProjectsBar({ error, sync, children }: { error: string | null; sync: ProjectsSync | null; children?: ReactNode }) {
+  return (
+    <div className="buildbar" role="group" aria-label="Projects">
+      {children}
+      {error ? <span className="cell__error buildbar__error" role="alert">{error}</span> : null}
+      <span className="buildbar__spacer" />
+      <ProjectsRefresh sync={sync} />
+    </div>
+  );
+}
+
+/**
  * The status dropdown: her stages (src/lib/projects.ts), one write per change.
  *
  * Her call, not a reading — which is why it is a select and not a chip. The
@@ -128,7 +156,8 @@ function stageColumn(onStage: (p: CodeProject, v: ProjectStage) => void): Column
         className="stagesel"
         value={p.status}
         aria-label={`Status of ${p.name}`}
-        onChange={(e) => onStage(p, e.target.value as ProjectStage)}
+        data-stage-for={p.sessionId}
+        onChange={(e) => { onStage(p, e.target.value as ProjectStage); keepStageFocus(p.sessionId); }}
       >
         {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
       </select>
@@ -144,8 +173,6 @@ const PROJECT_COLS: Column<CodeProject>[] = [
     render: (p) => (p.repoUrl ? link(p.repoUrl, p.repo ?? p.repoUrl) : dash) },
   { key: 'live', label: 'Live', type: 'link', width: 160, render: (p) => link(p.liveUrl) },
   { key: 'host', label: 'Host', type: 'select', width: 110, render: (p) => text(p.host) },
-  { key: 'branch', label: 'Branch', type: 'text', width: 220, render: (p) => text(p.branch) },
-  { key: 'framework', label: 'Framework', type: 'text', width: 190, render: (p) => text(p.framework) },
   { key: 'database', label: 'Database', type: 'text', width: 130, render: (p) => text(p.database) },
   { key: 'auth', label: 'Login', type: 'text', width: 120, render: (p) => text(p.auth) },
   { key: 'services', label: 'Services', type: 'text', width: 200, render: (p) => text(p.services) },
@@ -153,7 +180,8 @@ const PROJECT_COLS: Column<CodeProject>[] = [
 ];
 
 // Not shown (Giulia, 13 Oct 2026): the session's own state ("Running", "Needs
-// you"), one field with Status now, and the last action.
+// you"), one field with Status now, the last action, and the branch and the
+// framework (kept in the table, not important at this moment).
 
 /** Her session list's group (Giulia, 13 Oct 2026: "Group", not "Client"). */
 const GROUP_COL: Column<CodeProject> = { key: 'client', label: 'Group', type: 'select', width: 160, render: (p) => text(p.client) };
@@ -167,11 +195,13 @@ const HAMMER = (
 );
 
 /** The projects, folded by client the way her session list groups them. */
-function ProjectsGrid({ rows, store, empty, onStage }: {
+function ProjectsGrid({ rows, store, empty, onStage, error, sync }: {
   rows: CodeProject[];
   store: string;
   empty: string;
   onStage: (p: CodeProject, v: ProjectStage) => void;
+  error: string | null;
+  sync: ProjectsSync | null;
 }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const columns = [PROJECT_COLS[0], stageColumn(onStage), ...PROJECT_COLS.slice(1)];
@@ -184,13 +214,16 @@ function ProjectsGrid({ rows, store, empty, onStage }: {
     onToggle: () => setClosed((c) => ({ ...c, [client]: !c[client] })),
   }));
   return (
-    <Grid
-      columns={columns}
-      {...(rows.length > 0 ? { groups } : {})}
-      rowKey={(p) => p.sessionId}
-      store={store}
-      empty={empty}
-    />
+    <>
+      <ProjectsBar error={error} sync={sync} />
+      <Grid
+        columns={columns}
+        {...(rows.length > 0 ? { groups } : {})}
+        rowKey={(p) => p.sessionId}
+        store={store}
+        empty={empty}
+      />
+    </>
   );
 }
 
@@ -203,8 +236,8 @@ function ProjectsGrid({ rows, store, empty, onStage }: {
 type Focus = { onFocus: (p: CodeProject, on: boolean) => void; onNumbers: (numbers: { p: CodeProject; n: number | null }[]) => void };
 const ONLY = 'lifework.apps.building.only';
 
-function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error }: Focus & {
-  rows: CodeProject[]; store: string; empty: string; error: string | null;
+function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error, sync }: Focus & {
+  rows: CodeProject[]; store: string; empty: string; error: string | null; sync: ProjectsSync | null;
   onStage: (p: CodeProject, v: ProjectStage) => void;
 }) {
   const [only, setOnly] = useState(false);
@@ -277,11 +310,12 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error }
   }));
   return (
     <div className="mailstack buildlist">
-      <div className="buildbar" role="group" aria-label="Show">
-        <button type="button" className={`chip${!only ? ' chip--active' : ''}`} aria-pressed={!only} onClick={() => pick(false)}>All · {rows.length}</button>
-        <button type="button" className={`chip${only ? ' chip--active' : ''}`} aria-pressed={only} onClick={() => pick(true)}>Working on · {now}</button>
-        {error ? <span className="cell__error buildbar__error" role="alert">{error}</span> : null}
-      </div>
+      <ProjectsBar error={error} sync={sync}>
+        <span className="buildbar__chips" role="group" aria-label="Show">
+          <button type="button" className={`chip${!only ? ' chip--active' : ''}`} aria-pressed={!only} onClick={() => pick(false)}>All · {rows.length}</button>
+          <button type="button" className={`chip${only ? ' chip--active' : ''}`} aria-pressed={only} onClick={() => pick(true)}>Working on · {now}</button>
+        </span>
+      </ProjectsBar>
       <Grid columns={columns} {...(groups.length > 0 ? { groups } : {})} rowKey={(p) => p.sessionId} store={store}
         empty={only ? 'Nothing ticked as Working on. Tick a project in All.' : empty} />
     </div>
@@ -297,16 +331,21 @@ const byGroupThenPriority = (a: CodeProject, b: CodeProject) =>
  * Kanban list per stage from Idea phase to Paused, or the table folded the
  * same way. A list and its fold share the colour she gives them.
  */
-function Stages({ rows, mode, colors, grid, store, onStage }: {
+function Stages({ rows, mode, colors, grid, store, onStage, error, sync }: {
   rows: CodeProject[]; mode: ViewMode; colors: Record<string, PaletteKey>; grid: string; store: string;
-  onStage: (p: CodeProject, v: ProjectStage) => void;
+  onStage: (p: CodeProject, v: ProjectStage) => void; error: string | null; sync: ProjectsSync | null;
 }) {
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const inStage = (s: ProjectStage) => rows.filter((p) => p.status === s).sort(byGroupThenPriority);
   if (mode === 'kanban') {
     const lists: KanbanList<CodeProject>[] = BOARD_STAGES.map((s) => ({ key: s, title: STAGE_LABEL[s], items: inStage(s) }));
-    return <Kanban grid={grid} lists={lists} colors={colors} label="Projects by stage" itemKey={(p) => p.sessionId}
-      card={(p) => <ProjectCard p={p} onStage={onStage} />} />;
+    return (
+      <>
+        <ProjectsBar error={error} sync={sync} />
+        <Kanban grid={grid} lists={lists} colors={colors} label="Projects by stage" itemKey={(p) => p.sessionId}
+          card={(p) => <ProjectCard p={p} onStage={onStage} />} />
+      </>
+    );
   }
   const groups: Group<CodeProject>[] = BOARD_STAGES.map((s) => ({
     key: s,
@@ -319,8 +358,13 @@ function Stages({ rows, mode, colors, grid, store, onStage }: {
     onToggle: () => setClosed((c) => ({ ...c, [s]: !c[s] })),
     empty: 'Nothing in this stage.',
   }));
-  return <Grid columns={[PROJECT_COLS[0], GROUP_COL, stageColumn(onStage), ...PROJECT_COLS.slice(1)]}
-    groups={groups} rowKey={(p) => p.sessionId} store={store} />;
+  return (
+    <>
+      <ProjectsBar error={error} sync={sync} />
+      <Grid columns={[PROJECT_COLS[0], GROUP_COL, stageColumn(onStage), ...PROJECT_COLS.slice(1)]}
+        groups={groups} rowKey={(p) => p.sessionId} store={store} />
+    </>
+  );
 }
 
 /** A project on the board: its group, its name, the stage to change it to, and its links. */
@@ -333,8 +377,8 @@ function ProjectCard({ p, onStage }: { p: CodeProject; onStage: (p: CodeProject,
       </span>
       <span className="gcard__title">{p.name}</span>
       <span className="gcard__foot">
-        <select className="stagesel gcard__stage" value={p.status} aria-label={`Stage of ${p.name}`}
-          onChange={(e) => onStage(p, e.target.value as ProjectStage)}>
+        <select className="stagesel gcard__stage" value={p.status} aria-label={`Stage of ${p.name}`} data-stage-for={p.sessionId}
+          onChange={(e) => { onStage(p, e.target.value as ProjectStage); keepStageFocus(p.sessionId); }}>
           {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <a className="gcard__badge grid2__link" href={p.sessionUrl} target="_blank" rel="noreferrer" aria-label={`Session of ${p.name}`}>Session ↗</a>
@@ -537,18 +581,18 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
     // ---------------------------------------------------------------- apps
     case 'apps/building':
       return <BuildingList rows={projects.filter((p) => p.status === 'building')}
-        store={store} onStage={moveStage} {...focus} error={writeError}
+        store={store} onStage={moveStage} {...focus} error={writeError} sync={b.projectsSync}
         empty="No projects loaded. They come from the code_projects table." />;
     case 'apps/stages':
       return <Stages rows={projects} mode={view.mode ?? 'kanban'} colors={view.colors ?? {}} grid={view.grid ?? `${domain}/${tab}`}
-        store={store} onStage={moveStage} />;
+        store={store} onStage={moveStage} error={writeError} sync={b.projectsSync} />;
     case 'apps/live':
       return <ProjectsGrid rows={projects.filter((p) => p.status === 'running')}
-        store={store} onStage={moveStage}
+        store={store} onStage={moveStage} error={writeError} sync={b.projectsSync}
         empty="Nothing Running yet. Set a project's Status to Running and it moves here." />;
     case 'apps/archived':
       return <ProjectsGrid rows={projects.filter((p) => PUT_AWAY.includes(p.status))}
-        store={store} onStage={moveStage}
+        store={store} onStage={moveStage} error={writeError} sync={b.projectsSync}
         empty="Nothing closed or archived. Set a project's Status to Closed or Archived to put it away here." />;
     case 'apps/workers':
       return pending(['Worker', 'Building', 'Waiting on', 'Last seen'],

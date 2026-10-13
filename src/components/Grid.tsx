@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useColumnWidths, ResizeHandle } from '@/components/table';
 import { FieldIcon } from '@/components/FieldIcon';
 import { ColumnDialog } from '@/components/ColumnDialog';
+import { useScreenFit } from '@/components/useScreenFit';
 import type { FieldType, ColumnSetting } from '@/lib/grid';
 
 export type { FieldType } from '@/lib/grid';
@@ -79,27 +80,9 @@ export function Grid<T>({
   const editing = editingKey ? columns.find((c) => c.key === editingKey) : undefined;
 
   // Always in view (Giulia, 13 Oct 2026): the table scrolls inside itself, so
-  // its header row and its sideways scrollbar stay on the screen. Here it is
-  // fitted to the room left under it, so it ends at the bottom of the screen
-  // and the page around it does not scroll. A table further down a long page
-  // keeps the CSS default: the height of the screen under the chrome.
+  // its header row and its sideways scrollbar stay on the screen.
   const scroller = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scroller.current;
-    if (!el) return;
-    const fit = () => {
-      const room = Math.floor(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY));
-      const want = room >= Math.min(320, window.innerHeight / 2) ? `${room}px` : '';
-      if (el.style.getPropertyValue('--grid-fit') === want) return;
-      if (want) el.style.setProperty('--grid-fit', want); else el.style.removeProperty('--grid-fit');
-    };
-    fit();
-    // What sits above the table can change (a note, an error, a form opening).
-    const watch = new ResizeObserver(fit);
-    watch.observe(document.body);
-    window.addEventListener('resize', fit);
-    return () => { watch.disconnect(); window.removeEventListener('resize', fit); };
-  }, []);
+  useScreenFit(scroller);
 
   /** The rows of one run — the whole table, or one fold of it. */
   function body(list: T[], none: string) {
