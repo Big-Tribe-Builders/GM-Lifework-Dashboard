@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Bundle } from '@/lib/data/bundle';
 import { byClient, byPriority, WORK_LABEL, STAGES, type CodeProject, type ProjectStage } from '@/lib/projects';
 import { getSupabase } from '@/lib/supabase';
@@ -219,7 +219,7 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error }
     const rest = sorted.filter((x) => x !== p);
     if (n === null) {
       const numbered = rest.filter((x) => x.priority != null);
-      onNumbers([...numbered.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])), { p, n: null }]);
+      onNumbers([...numbered.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])), ...(p.priority == null ? [] : [{ p, n: null }])]);
       return;
     }
     const at = Math.min(n, rest.length + 1) - 1;
@@ -259,23 +259,42 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error }
 function PriorityCell({ p, canUp, canDown, onMove, onSet }: {
   p: CodeProject; canUp: boolean; canDown: boolean; onMove: (dir: -1 | 1) => void; onSet: (n: number | null) => void;
 }) {
-  const [draft, setDraft] = useState(p.priority == null ? '' : String(p.priority));
-  useEffect(() => { setDraft(p.priority == null ? '' : String(p.priority)); }, [p.priority]);
-  const commit = () => {
-    const v = draft.trim();
+  // What she is typing; null when she is not, and the box shows the saved number.
+  const [draft, setDraft] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  // A row that changes place is lifted out of the page and put back, which
+  // drops the keyboard focus. Give it back, to the other arrow if this one is
+  // now at the end.
+  const keep = (el: HTMLElement | null) => requestAnimationFrame(() => {
+    if (!el?.isConnected || document.activeElement === el) return;
+    if (el instanceof HTMLButtonElement && el.disabled) (el.parentElement?.querySelector<HTMLElement>('button:not(:disabled)') ?? input.current)?.focus();
+    else el.focus();
+  });
+  // Clicking away saves only what she typed. Enter always counts, even on the
+  // number already there: it puts the project ahead of one that shares it.
+  const commit = (enter = false) => {
+    if (draft === null && !enter) return;
+    const v = (draft ?? (p.priority == null ? '' : String(p.priority))).trim();
+    setDraft(null);
     const n = v === '' ? null : Number(v);
-    if (n !== null && (!Number.isInteger(n) || n < 1 || n > 9999)) { setDraft(p.priority == null ? '' : String(p.priority)); return; }
-    if (n !== (p.priority ?? null)) onSet(n);
+    if (n !== null && (!Number.isInteger(n) || n < 1 || n > 9999)) return;
+    onSet(n);
   };
   return (
     <span className="prio">
-      <input className="prio__num" inputMode="numeric" value={draft} placeholder="—" aria-label={`Priority of ${p.name}`}
-        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))} onBlur={commit}
-        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
-      <button type="button" className="prio__arrow" disabled={!canUp} aria-label={`Move ${p.name} up`} title="Move up" onClick={() => onMove(-1)}>
+      <input ref={input} className="prio__num" inputMode="numeric" value={draft ?? (p.priority == null ? '' : String(p.priority))} placeholder="—"
+        aria-label={`Priority of ${p.name}`}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ''))} onBlur={() => commit()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); commit(true); keep(input.current); }
+          if (e.key === 'Escape') { e.preventDefault(); setDraft(null); }
+        }} />
+      <button type="button" className="prio__arrow" disabled={!canUp} aria-label={`Move ${p.name} up`} title="Move up"
+        onClick={(e) => { const el = e.currentTarget; onMove(-1); keep(el); }}>
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 10 4-4 4 4" /></svg>
       </button>
-      <button type="button" className="prio__arrow" disabled={!canDown} aria-label={`Move ${p.name} down`} title="Move down" onClick={() => onMove(1)}>
+      <button type="button" className="prio__arrow" disabled={!canDown} aria-label={`Move ${p.name} down`} title="Move down"
+        onClick={(e) => { const el = e.currentTarget; onMove(1); keep(el); }}>
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
       </button>
     </span>
@@ -330,24 +349,48 @@ export function ZoneGrid({ domain, tab, blurb, b }: {
   const [writeError, setWriteError] = useState<string | null>(null);
   const projects = b.codeProjects.map(
     (p) => (staged[p.sessionId] ? { ...p, ...staged[p.sessionId] } : p));
+  // Writes go one after the other, so a quick second change never lands
+  // before the first and leaves the older value in the database.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  // What the database has taken since the page loaded: a refused write goes
+  // back to this, or to the loaded value, never to another unsaved change.
+  const saved = useRef<Record<string, Staged>>({});
   /** One or more rows at once: shown first, written, put back if the database says no. */
   async function write(changes: { p: CodeProject; local: Staged; column: Record<string, unknown> }[]) {
     if (!changes.length) return;
-    const before = Object.fromEntries(changes.map(({ p }) => [p.sessionId, staged[p.sessionId]]));
     setWriteError(null);
     setStaged((m) => {
       const next = { ...m };
       for (const c of changes) next[c.p.sessionId] = { ...next[c.p.sessionId], ...c.local };
       return next;
     });
+    // Put back only the fields this write set, and only where nothing newer has replaced them.
+    const undo = (list: typeof changes) => setStaged((m) => {
+      const next = { ...m };
+      for (const c of list) {
+        const id = c.p.sessionId;
+        const row: Record<string, unknown> = { ...next[id] };
+        const was = (saved.current[id] ?? {}) as Record<string, unknown>;
+        for (const [k, v] of Object.entries(c.local)) {
+          if (row[k] !== v) continue;
+          if (k in was) row[k] = was[k]; else delete row[k];
+        }
+        next[id] = row as Staged;
+      }
+      return next;
+    });
     const db = getSupabase();
-    if (!db) { setStaged((m) => ({ ...m, ...before })); setWriteError('Supabase is not configured, so this is not saved.'); return; }
-    const results = await Promise.all(changes.map((c) => db.from('code_projects').update(c.column).eq('session_id', c.p.sessionId)));
+    if (!db) { undo(changes); setWriteError('Supabase is not configured, so this is not saved.'); return; }
+    const run = queue.current.then(() => Promise.all(changes.map((c) =>
+      db.from('code_projects').update(c.column).eq('session_id', c.p.sessionId).then((r) => r.error?.message ?? null))));
+    queue.current = run.catch(() => null);
+    const errors = await run.catch((e: unknown) => changes.map(() => (e instanceof Error ? e.message : 'The database could not be reached.')));
+    changes.forEach((c, i) => { if (!errors[i]) saved.current[c.p.sessionId] = { ...saved.current[c.p.sessionId], ...c.local }; });
     // Only what the database refused goes back; what it took stays.
-    const failed = changes.filter((_, i) => results[i].error);
+    const failed = changes.filter((_, i) => errors[i]);
     if (failed.length) {
-      setStaged((m) => ({ ...m, ...Object.fromEntries(failed.map(({ p }) => [p.sessionId, before[p.sessionId]])) }));
-      setWriteError(results.find((r) => r.error)!.error!.message);
+      undo(failed);
+      setWriteError(errors.find(Boolean)!);
     }
   }
   const moveStage = (p: CodeProject, v: ProjectStage) => write([{ p, local: { status: v }, column: { status: v } }]);
