@@ -13,5 +13,6 @@ create view code_projects_status_api with (security_invoker = true) as
 
 grant select on code_projects_status_api to anon, authenticated;
 
--- The page may change these three and nothing else; the WHERE needs the key.
-grant select (session_id), update (status, working_on, priority) on code_projects to anon, authenticated;
+-- The view reads these columns as the page's own role, so it is given them by
+-- name. The page may change three of them and nothing else; the WHERE needs the key.
+grant select (session_id, status, working_on, priority), update (status, working_on, priority) on code_projects to anon, authenticated;
