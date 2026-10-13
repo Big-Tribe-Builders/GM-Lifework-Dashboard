@@ -24,7 +24,11 @@ export async function refreshProjects(): Promise<Result> {
   try {
     const r = await fetch(url!, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+      // The beta header is optional by the API reference and shown in the routines guide; sent, it works either way.
+      headers: {
+        Authorization: `Bearer ${token}`, 'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ text: 'Refresh started from Vibe Coding.' }),
       cache: 'no-store',
     });
