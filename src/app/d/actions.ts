@@ -39,7 +39,7 @@ export async function saveDomainSettings(
 }
 
 /**
- * Give a group a colour from the palette — a list in a gallery, a fold in a
+ * Give a group a colour from the palette — a list on a Kanban board, a fold in a
  * table — or take it away with ''. Keyed by the collection and the group, so
  * the same year can be red in one tab and blue in another.
  */

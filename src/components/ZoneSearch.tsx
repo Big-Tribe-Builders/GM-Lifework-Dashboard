@@ -23,7 +23,7 @@ export function ZoneSearch({ placeholder }: { placeholder: string }) {
     const current = params.get('q') ?? '';
     if (q === current) return;
     const t = setTimeout(() => {
-      // Keep the rest of the address (the view: table or gallery); only an
+      // Keep the rest of the address (the view: table or Kanban); only an
       // open panel closes, as the list under it changes.
       const next = new URLSearchParams(params.toString());
       if (q) next.set('q', q); else next.delete('q');

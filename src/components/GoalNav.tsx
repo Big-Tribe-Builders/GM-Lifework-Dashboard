@@ -13,7 +13,7 @@ import { ConfirmDialog } from '@/components/ClientTable';
 import { shortDate } from '@/lib/upwork';
 import { PALETTE, type PaletteKey } from '@/lib/palette';
 import { quarterWeeks, quarterPos } from '@/lib/btb';
-import { Gallery, AddCard, Avatars, type GalleryList } from '@/components/Gallery';
+import { Kanban, AddCard, Avatars, type KanbanList } from '@/components/Kanban';
 import { ColorPicker } from '@/components/ColorPicker';
 import { Field, CloseLink, usePanelKeys } from '@/components/panel';
 import { Sel, Remove as RemoveButton } from '@/components/rowkit';
@@ -23,8 +23,8 @@ import { Sel, Remove as RemoveButton } from '@/components/rowkit';
  *
  *   Dashboard       this quarter: goals with progress, action points this week
  *   Roadmap         the timeline of a quarter's action points, after the BTB roadmap, with the table under it
- *   Yearly goals    gallery (one list per year, after Trello) or grid folded by year
- *   Quarterly goals gallery (one list per quarter) or grid folded by quarter
+ *   Yearly goals    Kanban (one list per year, after Trello) or grid folded by year
+ *   Quarterly goals Kanban (one list per quarter) or grid folded by quarter
  *   Action points   grid folded by quarter
  *
  * Every row has a venture, so one board holds all three businesses. Each
@@ -182,7 +182,7 @@ export function Quarters({ rows, years, actions, colors, grid: colorGrid, ...c }
   );
 }
 
-// --------------------------------------------------------------- gallery
+// ---------------------------------------------------------------- kanban
 
 /** Where a card's panel opens: the same place, with ?peek=. */
 const peekHref = (here: string, id: string) => `${here}${here.includes('?') ? '&' : '?'}peek=${id}`;
@@ -207,13 +207,13 @@ const Icon = {
 };
 
 /** Yearly goals as Trello lists: one per year, this year and next always there. */
-export function YearsGallery({ rows, quarters, actions, colors, grid, here, peek }: {
+export function YearsKanban({ rows, quarters, actions, colors, grid, here, peek }: {
   rows: YearGoal[]; quarters: QuarterGoal[]; actions: ActionPoint[];
   colors: Record<string, PaletteKey>; grid: string; here: string; peek?: string;
 }) {
   const now = new Date().getUTCFullYear();
   const years = [...new Set([...rows.map((r) => r.year), now, now + 1])].sort((a, b) => a - b);
-  const lists: GalleryList<YearGoal>[] = years.map((y) => ({
+  const lists: KanbanList<YearGoal>[] = years.map((y) => ({
     key: String(y), title: String(y), now: y === now,
     items: rows.filter((r) => r.year === y).sort((a, b) => a.sortOrder - b.sortOrder || a.venture.localeCompare(b.venture)),
     add: <AddCard label="+ Add a goal" placeholder={`A goal for ${y}`} choice={{ label: 'Venture', options: ventureOpts }}
@@ -222,7 +222,7 @@ export function YearsGallery({ rows, quarters, actions, colors, grid, here, peek
   const open = peek ? rows.find((r) => r.id === peek) ?? null : null;
   return (
     <>
-      <Gallery grid={grid} lists={lists} colors={colors} label="Yearly goals" itemKey={(r) => r.id}
+      <Kanban grid={grid} lists={lists} colors={colors} label="Yearly goals" itemKey={(r) => r.id}
         href={(r) => peekHref(here, r.id)} card={(r) => {
           const qs = quarters.filter((q) => q.yearGoalId === r.id);
           const ids = new Set(qs.map((q) => q.id));
@@ -250,14 +250,14 @@ export function YearsGallery({ rows, quarters, actions, colors, grid, here, peek
 }
 
 /** Quarterly goals as Trello lists: one per quarter, this quarter and the next always there. */
-export function QuartersGallery({ rows, years, actions, colors, grid, here, peek }: {
+export function QuartersKanban({ rows, years, actions, colors, grid, here, peek }: {
   rows: QuarterGoal[]; years: YearGoal[]; actions: ActionPoint[];
   colors: Record<string, PaletteKey>; grid: string; here: string; peek?: string;
 }) {
   const now = thisQuarter();
   const today = todayUtc();
   const qs = [...new Set([...rows.map((r) => r.quarter), now, nextQuarter(now)])].sort();
-  const lists: GalleryList<QuarterGoal>[] = qs.map((q) => ({
+  const lists: KanbanList<QuarterGoal>[] = qs.map((q) => ({
     key: q, title: quarterLabel(q), sub: quarterMonths(q), now: q === now,
     items: rows.filter((r) => r.quarter === q).sort((a, b) => a.venture.localeCompare(b.venture) || a.sortOrder - b.sortOrder),
     add: /^\d{4}-Q[1-4]$/.test(q) ? (
@@ -268,7 +268,7 @@ export function QuartersGallery({ rows, years, actions, colors, grid, here, peek
   const open = peek ? rows.find((r) => r.id === peek) ?? null : null;
   return (
     <>
-      <Gallery grid={grid} lists={lists} colors={colors} label="Quarterly goals" itemKey={(r) => r.id}
+      <Kanban grid={grid} lists={lists} colors={colors} label="Quarterly goals" itemKey={(r) => r.id}
         href={(r) => peekHref(here, r.id)} card={(r) => {
           const acts = actions.filter((a) => a.quarterGoalId === r.id);
           const done = acts.filter((a) => a.status === 'done').length;

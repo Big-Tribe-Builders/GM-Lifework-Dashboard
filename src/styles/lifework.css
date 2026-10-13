@@ -1254,13 +1254,20 @@ button.row {
   min-height: 100%;
 }
 
+/* Always in view (Giulia, 13 Oct 2026), on every table: the header row and
+   the sideways scrollbar never leave the screen. The table scrolls inside
+   itself and is never taller than the screen under the chrome, so its header
+   sticks at its top and its scrollbar sits at its bottom. Grid.tsx sets
+   --grid-fit to the room left under the table, so on a page that is one
+   table the table ends at the bottom of the screen and the page stays put. */
 .grid2__scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
+  max-height: var(--grid-fit, calc(100dvh - var(--chrome-h)));
   scrollbar-width: auto;
   scrollbar-color: #c3c6cd var(--grid-canvas);
 }
-.grid2__scroll::-webkit-scrollbar { height: 12px; }
+.grid2__scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+.grid2__scroll::-webkit-scrollbar-corner { background: var(--grid-canvas); }
 .grid2__scroll::-webkit-scrollbar-track { background: var(--grid-canvas); }
 .grid2__scroll::-webkit-scrollbar-thumb {
   background: #c3c6cd;
@@ -1290,11 +1297,16 @@ button.row {
   text-overflow: ellipsis;
 }
 
-/* the header: a grey band across the full width, one heavier rule under it */
+/* the header: a grey band across the full width, one heavier rule under it.
+   It sticks to the top of the table's own scroll; the rule under it is drawn
+   as a shadow, because a collapsed border stays behind when the cell sticks. */
 .grid2__table th {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 2;
   background: var(--grid-head-bg);
   border-bottom: 1px solid var(--grid-line-strong);
+  box-shadow: inset 0 -1px 0 var(--grid-line-strong);
   font-size: 13px;
   font-weight: 500;
   color: var(--grid-head-ink);
@@ -2120,7 +2132,7 @@ a.dsettings__item { text-decoration: none; }
 
 /* ------------------------------------------------------------------------
    Views. A tab that offers more than one way to draw its rows (nav.ts,
-   `views`) gets the switch on the right of the toolbar. Table · Gallery.
+   `views`) gets the switch on the right of the toolbar. Table · Kanban.
    ------------------------------------------------------------------------ */
 .viewswitch { display: inline-flex; flex: none; margin-left: 8px; border: 1px solid var(--hairline); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .viewswitch__btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; font-size: 13px; color: var(--ink-soft); text-decoration: none; white-space: nowrap; }
@@ -2134,11 +2146,12 @@ a.dsettings__item { text-decoration: none; }
 @media (max-width: 640px) { .viewswitch__label { display: none; } .viewswitch__btn { padding: 0 9px; } }
 
 /* ------------------------------------------------------------------------
-   The gallery, after Trello (Giulia, 10 Oct 2026). One list per group, side
-   by side; cards stacked in each. Grey lists unless she gives one a colour
-   from the palette (studiolo-theme.css). See src/components/Gallery.tsx.
+   The Kanban board, after Trello (Giulia, 10 Oct 2026; called Gallery until
+   13 Oct). One list per group, side by side; cards stacked in each. Grey
+   lists unless she gives one a colour from the palette (studiolo-theme.css).
+   See src/components/Kanban.tsx.
    ------------------------------------------------------------------------ */
-.gallery { display: flex; align-items: flex-start; gap: 12px; padding: 16px; overflow-x: auto; min-height: 420px; }
+.kanban { display: flex; align-items: flex-start; gap: 12px; padding: 16px; overflow-x: auto; min-height: 420px; }
 .glist { flex: 0 0 300px; display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: 14px; background: #e9ecf0; }
 .glist.tinted { background: rgb(var(--tint) / var(--tint-bg)); }
 .glist.tinted .glist__title { color: var(--tint-ink); }
@@ -2321,3 +2334,20 @@ a.dsettings__item { text-decoration: none; }
    on — never the darker tab strip. Outside a zone it stays violet. */
 .btn--primary { background: var(--accent, var(--brand-violet)); }
 .btn--primary:hover:not(:disabled) { background: var(--accent-deep, var(--brand-violet-deep)); }
+
+/* Vibe Coding › Building: the hammer is "Working on" (Giulia, 13 Oct 2026),
+   the box under it the tick, with a rule between the row number and the box. */
+.hammer { width: 16px; height: 16px; flex: none; }
+.grid2__field--glyph { justify-content: center; width: 100%; color: var(--grid-head-ink); }
+.buildlist .grid2__table tr:not(.grid2__fold) > :first-child { padding-left: 40px; }
+.buildlist .grid2__table tr:not(.grid2__fold) > :first-child::after {
+  content: ''; position: absolute; left: 40px; top: 0; bottom: 0;
+  border-left: 1px solid var(--grid-line); pointer-events: none;
+}
+
+/* Vibe Coding › Stages: a card holds its stage dropdown and its links, so it
+   is not one big link; the stage reads as a small control at its foot. */
+.gcard--still:hover { box-shadow: 0 1px 0 rgb(20 22 28 / 0.16); border-color: transparent; }
+.gcard__stage { height: 26px; padding: 0 6px; border: 1px solid var(--hairline); border-radius: 6px; background: var(--surface); font: inherit; font-size: 12px; color: var(--ink); cursor: pointer; }
+.gcard__stage:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.gcard__now { color: var(--ink-soft); }

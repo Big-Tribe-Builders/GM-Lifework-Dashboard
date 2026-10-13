@@ -111,9 +111,9 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
   );
 }
 
-/** The glyph before the tab's name: a table, or the cards of a gallery. */
+/** The glyph before the tab's name: a table, or the lists of a Kanban board. */
 function ViewGlyph({ mode }: { mode: ViewMode }) {
-  return mode === 'gallery' ? (
+  return mode === 'kanban' ? (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
       <rect x="1.5" y="2.5" width="4" height="11" rx="1.2" />
       <rect x="7" y="2.5" width="4" height="7.5" rx="1.2" />
@@ -133,7 +133,7 @@ function CurrentViewGlyph({ tab }: { tab: Tab }) {
 }
 
 /**
- * Table or gallery, on the right of the toolbar, for a tab that offers both.
+ * Table or Kanban, on the right of the toolbar, for a tab that offers both.
  * The view is in the address (?view=), so back returns to the other one and
  * a link opens where it was sent from. An open panel closes on a switch.
  */

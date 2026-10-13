@@ -40,7 +40,7 @@ export function paletteFor(name: string): PaletteKey {
   return PALETTE[h % PALETTE.length].key;
 }
 
-/** A colour she gave to one group: a list in a gallery, a fold in a table. */
+/** A colour she gave to one group: a list on a Kanban board, a fold in a table. */
 export type ViewGroup = { grid: string; groupKey: string; color: string | null };
 
 /** The colours for one collection, by group key. */

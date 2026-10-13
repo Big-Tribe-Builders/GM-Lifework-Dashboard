@@ -6,14 +6,28 @@
  * been read from the host. Everything here is what the session records say,
  * plus what she has told us about hosting.
  */
-/** Where a project stands, her call, set from the grid. */
-export type ProjectStage = 'building' | 'live' | 'archived';
+/**
+ * Where a project stands, her call, set from the grid. Her stages (Giulia,
+ * 13 Oct 2026), in this order; Running took the place of Live. One field:
+ * the session's own state (running, needs you) is no longer shown.
+ */
+export type ProjectStage = 'idea' | 'next_up' | 'building' | 'review' | 'running' | 'paused' | 'closed' | 'archived';
 
 export const STAGES: { value: ProjectStage; label: string }[] = [
+  { value: 'idea', label: 'Idea phase' },
+  { value: 'next_up', label: 'Next up' },
   { value: 'building', label: 'Building' },
-  { value: 'live', label: 'Live' },
+  { value: 'review', label: 'Review' },
+  { value: 'running', label: 'Running' },
+  { value: 'paused', label: 'Paused' },
+  { value: 'closed', label: 'Closed' },
   { value: 'archived', label: 'Archived' },
 ];
+export const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.value, s.label])) as Record<ProjectStage, string>;
+
+/** The stages on the Stages board, one list each. Closed and Archived are put away, under Archived. */
+export const BOARD_STAGES: ProjectStage[] = ['idea', 'next_up', 'building', 'review', 'running', 'paused'];
+export const PUT_AWAY: ProjectStage[] = ['closed', 'archived'];
 
 export type CodeProject = {
   sessionId: string;
@@ -36,7 +50,7 @@ export type CodeProject = {
   status: ProjectStage;
   /** Ticked: she is working on it now (Vibe Coding › Building). */
   workingOn?: boolean;
-  /** Her order of priority, 1 first; none yet means after the numbered ones. */
+  /** Her order of priority within its group (client), 1 first; none yet means after the numbered ones. */
   priority?: number | null;
 };
 
@@ -56,8 +70,3 @@ export const byClient = (rows: CodeProject[]) => {
   return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 };
 
-export const WORK_LABEL: Record<string, string> = {
-  completed: 'Done',
-  need_input: 'Needs you',
-  review_ready: 'Ready to review',
-};

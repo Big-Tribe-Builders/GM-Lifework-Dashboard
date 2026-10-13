@@ -77,7 +77,7 @@ export const getCollectionOrder = () =>
 export const getGridColumns = () =>
   readTable<ColumnSetting>('grid_columns_api', []);
 
-// The colour she gave each group (a list in a gallery, a fold in a table).
+// The colour she gave each group (a list on a Kanban board, a fold in a table).
 // Empty until she picks one, and empty if the table is not there yet.
 export const getViewGroups = () =>
   readTable<ViewGroup>('view_groups_api', localRows<ViewGroup>('viewGroups') ?? []);
@@ -91,10 +91,15 @@ export const getViewGroups = () =>
 // A row the status view does not know is Building — the state every project
 // starts in. A failed status read is surfaced, not swallowed: it means the
 // 0009 migration has not been run yet.
+// Live is called Running since 13 Oct 2026 (0021); a row still saying Live
+// reads as Running, so the page is right before and after the SQL has run.
+const stageOf = (v: string | null | undefined): CodeProject['status'] =>
+  (v === 'live' ? 'running' : (v as CodeProject['status'] | null | undefined) ?? 'building');
+
 export const getCodeProjects = async () => {
   const base = await readTable<CodeProject>(
     'code_projects_api', localRows<CodeProject>('codeProjects') ?? []);
-  const stage = await readTable<{ sessionId: string; status: CodeProject['status']; workingOn?: boolean; priority?: number | null }>(
+  const stage = await readTable<{ sessionId: string; status: string; workingOn?: boolean; priority?: number | null }>(
     'code_projects_status_api', []);
   const by = new Map(stage.rows.map((s) => [s.sessionId, s]));
   return {
@@ -102,7 +107,7 @@ export const getCodeProjects = async () => {
     error: base.error ?? (base.source === 'supabase' ? stage.error : null),
     rows: base.rows.map((p) => {
       const s = by.get(p.sessionId);
-      return { ...p, status: s?.status ?? p.status ?? 'building', workingOn: s?.workingOn ?? p.workingOn ?? false, priority: s?.priority ?? p.priority ?? null };
+      return { ...p, status: stageOf(s?.status ?? p.status), workingOn: s?.workingOn ?? p.workingOn ?? false, priority: s?.priority ?? p.priority ?? null };
     }),
   };
 };

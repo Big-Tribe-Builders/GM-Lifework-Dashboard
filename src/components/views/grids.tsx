@@ -2,13 +2,18 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Bundle } from '@/lib/data/bundle';
-import { byClient, byPriority, WORK_LABEL, STAGES, type CodeProject, type ProjectStage } from '@/lib/projects';
+import { byClient, byPriority, STAGES, STAGE_LABEL, BOARD_STAGES, PUT_AWAY, type CodeProject, type ProjectStage } from '@/lib/projects';
 import { getSupabase } from '@/lib/supabase';
 import type {
   Task, AppLink, BrainSource, VoiceRule, ContentItem, Course, GoalPeriod, Signal,
 } from '@/lib/types';
 import { ROOTS } from '@/lib/types';
 import { Grid, type Column, type Group } from '@/components/Grid';
+import { Kanban, type KanbanList } from '@/components/Kanban';
+import { ColorPicker } from '@/components/ColorPicker';
+import { saveGroupColor } from '@/app/d/actions';
+import type { PaletteKey } from '@/lib/palette';
+import type { ViewMode } from '@/lib/grid';
 import { shortDate } from '@/lib/upwork';
 
 /**
@@ -109,7 +114,7 @@ const SIGNAL_COLS: Column<Signal>[] = [
 ];
 
 /**
- * The status dropdown: Building | Live | Archived, one write per change.
+ * The status dropdown: her stages (src/lib/projects.ts), one write per change.
  *
  * Her call, not a reading — which is why it is a select and not a chip. The
  * row moves to its tab the moment she picks, and moves back if the write
@@ -139,12 +144,6 @@ const PROJECT_COLS: Column<CodeProject>[] = [
     render: (p) => (p.repoUrl ? link(p.repoUrl, p.repo ?? p.repoUrl) : dash) },
   { key: 'live', label: 'Live', type: 'link', width: 160, render: (p) => link(p.liveUrl) },
   { key: 'host', label: 'Host', type: 'select', width: 110, render: (p) => text(p.host) },
-  { key: 'work', label: 'Work', type: 'select', width: 140,
-    render: (p) => chip(
-      p.sessionState === 'running' ? 'Running' : WORK_LABEL[p.workState ?? ''] ?? text(p.workState) as string,
-      p.sessionState === 'running' ? 'active' : p.workState === 'need_input' ? 'contact' : p.workState === 'completed' ? 'done' : 'sleeping',
-    ) },
-  { key: 'last', label: 'Last action', type: 'text', width: 340, render: (p) => text(p.lastAction) },
   { key: 'branch', label: 'Branch', type: 'text', width: 220, render: (p) => text(p.branch) },
   { key: 'framework', label: 'Framework', type: 'text', width: 190, render: (p) => text(p.framework) },
   { key: 'database', label: 'Database', type: 'text', width: 130, render: (p) => text(p.database) },
@@ -152,6 +151,20 @@ const PROJECT_COLS: Column<CodeProject>[] = [
   { key: 'services', label: 'Services', type: 'text', width: 200, render: (p) => text(p.services) },
   { key: 'updated', label: 'Updated', type: 'date', width: 120, render: (p) => shortDate(p.updatedAt) },
 ];
+
+// Not shown (Giulia, 13 Oct 2026): the session's own state ("Running", "Needs
+// you"), one field with Status now, and the last action.
+
+/** Her session list's group (Giulia, 13 Oct 2026: "Group", not "Client"). */
+const GROUP_COL: Column<CodeProject> = { key: 'client', label: 'Group', type: 'select', width: 160, render: (p) => text(p.client) };
+
+/** "Working on": a hammer, drawn in the header and on a card. */
+const HAMMER = (
+  <svg className="hammer" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2.2 13.8 8.6 7.4" strokeWidth="2" />
+    <path d="M8 2 14 8 11.6 10.4 5.6 4.4Z" fill="currentColor" strokeWidth="1" />
+  </svg>
+);
 
 /** The projects, folded by client the way her session list groups them. */
 function ProjectsGrid({ rows, store, empty, onStage }: {
@@ -182,9 +195,10 @@ function ProjectsGrid({ rows, store, empty, onStage }: {
 }
 
 /**
- * Vibe Coding › Building as a priority list (Giulia, 13 Oct 2026): one list
- * in her order, 1 first, with a tick for what she is working on now and a
- * switch between all of them and only those.
+ * Vibe Coding › Building (Giulia, 13 Oct 2026): the projects per group, the
+ * way her session list groups them, each group in its own order of priority,
+ * 1 first. A tick for what she is working on now, and a switch between all
+ * of them and only those.
  */
 type Focus = { onFocus: (p: CodeProject, on: boolean) => void; onNumbers: (numbers: { p: CodeProject; n: number | null }[]) => void };
 const ONLY = 'lifework.apps.building.only';
@@ -194,29 +208,38 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error }
   onStage: (p: CodeProject, v: ProjectStage) => void;
 }) {
   const [only, setOnly] = useState(false);
+  const [closed, setClosed] = useState<Record<string, boolean>>({});
   // Which of the two she looked at last, kept in this browser.
   useEffect(() => { try { setOnly(localStorage.getItem(ONLY) === '1'); } catch { /* private mode */ } }, []);
   const pick = (v: boolean) => { setOnly(v); try { localStorage.setItem(ONLY, v ? '1' : '0'); } catch { /* private mode */ } };
 
-  const sorted = [...rows].sort(byPriority);
-  const shown = only ? sorted.filter((p) => p.workingOn) : sorted;
-  const now = sorted.filter((p) => p.workingOn).length;
+  // Each group in its own order: numbered first (1, 2, 3 …), then the rest by name.
+  const byGroup = byClient(rows).map(([group, list]) => {
+    const all = [...list].sort(byPriority);
+    return { group, all, shown: only ? all.filter((p) => p.workingOn) : all };
+  });
+  const groupOf = new Map(byGroup.flatMap((g) => g.all.map((p) => [p.sessionId, g] as const)));
+  const now = rows.filter((p) => p.workingOn).length;
 
-  // The whole list numbered 1, 2, 3 … as it reads; only the numbers that change are written.
+  // A group numbered 1, 2, 3 … as it reads; only the numbers that change are written.
   const renumber = (order: CodeProject[]) => onNumbers(order.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])));
-  // Move one place among what is shown.
+  // Move one place among what is shown of its group.
   function move(p: CodeProject, dir: -1 | 1) {
-    const i = shown.indexOf(p);
-    const other = shown[i + dir];
+    const g = groupOf.get(p.sessionId);
+    if (!g) return;
+    const other = g.shown[g.shown.indexOf(p) + dir];
     if (!other) return;
-    const rest = sorted.filter((x) => x !== p);
+    const rest = g.all.filter((x) => x !== p);
     const at = rest.indexOf(other) + (dir === 1 ? 1 : 0);
     renumber([...rest.slice(0, at), p, ...rest.slice(at)]);
   }
-  // A typed number puts the project in that place. An emptied one drops it
-  // to the projects without a number, and the numbered ones close up.
+  // A typed number puts the project in that place in its group. An emptied
+  // one drops it to the group's projects without a number, and the numbered
+  // ones close up.
   function place(p: CodeProject, n: number | null) {
-    const rest = sorted.filter((x) => x !== p);
+    const g = groupOf.get(p.sessionId);
+    if (!g) return;
+    const rest = g.all.filter((x) => x !== p);
     if (n === null) {
       const numbered = rest.filter((x) => x.priority != null);
       onNumbers([...numbered.flatMap((x, i) => (x.priority === i + 1 ? [] : [{ p: x, n: i + 1 }])), ...(p.priority == null ? [] : [{ p, n: null }])]);
@@ -227,31 +250,98 @@ function BuildingList({ rows, store, empty, onStage, onFocus, onNumbers, error }
   }
 
   const columns: Column<CodeProject>[] = [
-    { key: 'now', label: 'Working on', type: 'check', width: 150, render: (p) => (
+    { key: 'now', label: 'Working on', type: 'check', width: 84, glyph: HAMMER, render: (p) => (
       <span className="flagcell">
         <input type="checkbox" className="flagcell__box" checked={!!p.workingOn} aria-label={`Working on ${p.name}`}
           onChange={(e) => onFocus(p, e.target.checked)} />
       </span>
     ) },
     { key: 'priority', label: 'Priority', type: 'number', width: 140, render: (p) => {
+      const shown = groupOf.get(p.sessionId)?.shown ?? [];
       const i = shown.indexOf(p);
       return <PriorityCell p={p} canUp={i > 0} canDown={i < shown.length - 1} onMove={(d) => move(p, d)} onSet={(n) => place(p, n)} />;
     } },
     PROJECT_COLS[0],
-    { key: 'client', label: 'Client', type: 'select', width: 160, render: (p) => text(p.client) },
+    GROUP_COL,
     stageColumn(onStage),
     ...PROJECT_COLS.slice(1),
   ];
+  // A group with nothing to show (none ticked, under Working on) is left out.
+  const groups: Group<CodeProject>[] = byGroup.filter((g) => g.shown.length > 0).map((g) => ({
+    key: g.group,
+    head: <span className="grid2__foldname">{g.group}</span>,
+    tone: 'grey',
+    rows: g.shown,
+    open: !closed[g.group],
+    onToggle: () => setClosed((c) => ({ ...c, [g.group]: !c[g.group] })),
+  }));
   return (
-    <div className="mailstack">
+    <div className="mailstack buildlist">
       <div className="buildbar" role="group" aria-label="Show">
-        <button type="button" className={`chip${!only ? ' chip--active' : ''}`} aria-pressed={!only} onClick={() => pick(false)}>All · {sorted.length}</button>
+        <button type="button" className={`chip${!only ? ' chip--active' : ''}`} aria-pressed={!only} onClick={() => pick(false)}>All · {rows.length}</button>
         <button type="button" className={`chip${only ? ' chip--active' : ''}`} aria-pressed={only} onClick={() => pick(true)}>Working on · {now}</button>
         {error ? <span className="cell__error buildbar__error" role="alert">{error}</span> : null}
       </div>
-      <Grid columns={columns} rows={shown} rowKey={(p) => p.sessionId} store={store}
+      <Grid columns={columns} {...(groups.length > 0 ? { groups } : {})} rowKey={(p) => p.sessionId} store={store}
         empty={only ? 'Nothing ticked as Working on. Tick a project in All.' : empty} />
     </div>
+  );
+}
+
+/** Projects on the board and in the table: by group, then in her order. */
+const byGroupThenPriority = (a: CodeProject, b: CodeProject) =>
+  (a.client ?? 'Other').localeCompare(b.client ?? 'Other') || byPriority(a, b);
+
+/**
+ * Vibe Coding › Stages (Giulia, 13 Oct 2026): every project by stage, a
+ * Kanban list per stage from Idea phase to Paused, or the table folded the
+ * same way. A list and its fold share the colour she gives them.
+ */
+function Stages({ rows, mode, colors, grid, store, onStage }: {
+  rows: CodeProject[]; mode: ViewMode; colors: Record<string, PaletteKey>; grid: string; store: string;
+  onStage: (p: CodeProject, v: ProjectStage) => void;
+}) {
+  const [closed, setClosed] = useState<Record<string, boolean>>({});
+  const inStage = (s: ProjectStage) => rows.filter((p) => p.status === s).sort(byGroupThenPriority);
+  if (mode === 'kanban') {
+    const lists: KanbanList<CodeProject>[] = BOARD_STAGES.map((s) => ({ key: s, title: STAGE_LABEL[s], items: inStage(s) }));
+    return <Kanban grid={grid} lists={lists} colors={colors} label="Projects by stage" itemKey={(p) => p.sessionId}
+      card={(p) => <ProjectCard p={p} onStage={onStage} />} />;
+  }
+  const groups: Group<CodeProject>[] = BOARD_STAGES.map((s) => ({
+    key: s,
+    head: <span className="grid2__foldname">{STAGE_LABEL[s]}</span>,
+    tone: 'grey',
+    tint: colors[s] ?? null,
+    tools: <ColorPicker value={colors[s] ?? null} label={`Colour of ${STAGE_LABEL[s]}`} onPick={(v) => saveGroupColor(grid, s, v)} />,
+    rows: inStage(s),
+    open: !closed[s],
+    onToggle: () => setClosed((c) => ({ ...c, [s]: !c[s] })),
+    empty: 'Nothing in this stage.',
+  }));
+  return <Grid columns={[PROJECT_COLS[0], GROUP_COL, stageColumn(onStage), ...PROJECT_COLS.slice(1)]}
+    groups={groups} rowKey={(p) => p.sessionId} store={store} />;
+}
+
+/** A project on the board: its group, its name, the stage to change it to, and its links. */
+function ProjectCard({ p, onStage }: { p: CodeProject; onStage: (p: CodeProject, v: ProjectStage) => void }) {
+  return (
+    <>
+      <span className="gcard__labels">
+        {p.client ? <span className="gcard__chip gcard__chip--plain">{p.client}</span> : null}
+        {p.workingOn ? <span className="gcard__badge gcard__now" title="Working on">{HAMMER}<span className="sr-only">Working on</span></span> : null}
+      </span>
+      <span className="gcard__title">{p.name}</span>
+      <span className="gcard__foot">
+        <select className="stagesel gcard__stage" value={p.status} aria-label={`Stage of ${p.name}`}
+          onChange={(e) => onStage(p, e.target.value as ProjectStage)}>
+          {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <a className="gcard__badge grid2__link" href={p.sessionUrl} target="_blank" rel="noreferrer" aria-label={`Session of ${p.name}`}>Session ↗</a>
+        {p.repoUrl ? <a className="gcard__badge grid2__link" href={p.repoUrl} target="_blank" rel="noreferrer" aria-label={`GitHub of ${p.name}`}>GitHub ↗</a> : null}
+        {p.liveUrl ? <a className="gcard__badge grid2__link" href={p.liveUrl} target="_blank" rel="noreferrer" aria-label={`${p.name} live`}>Live ↗</a> : null}
+      </span>
+    </>
   );
 }
 
@@ -335,11 +425,13 @@ function pending(labels: string[], what: string, store: string): ReactNode {
  * Takes slugs rather than the nav objects: the grid runs in the browser, so
  * only plain data crosses to it.
  */
-export function ZoneGrid({ domain, tab, blurb, b }: {
+export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
   domain: string;
   tab: string;
   blurb: string;
   b: Bundle;
+  /** For a tab with a Kanban: which view, the colours she gave its lists, and where they are saved. */
+  view?: { mode?: ViewMode; colors?: Record<string, PaletteKey>; grid?: string };
 }): ReactNode {
   const store = `lifework.${domain}.${tab}.cols`;
   // Her changes land here first, so a row changes the moment she picks —
@@ -447,14 +539,17 @@ export function ZoneGrid({ domain, tab, blurb, b }: {
       return <BuildingList rows={projects.filter((p) => p.status === 'building')}
         store={store} onStage={moveStage} {...focus} error={writeError}
         empty="No projects loaded. They come from the code_projects table." />;
+    case 'apps/stages':
+      return <Stages rows={projects} mode={view.mode ?? 'kanban'} colors={view.colors ?? {}} grid={view.grid ?? `${domain}/${tab}`}
+        store={store} onStage={moveStage} />;
     case 'apps/live':
-      return <ProjectsGrid rows={projects.filter((p) => p.status === 'live')}
+      return <ProjectsGrid rows={projects.filter((p) => p.status === 'running')}
         store={store} onStage={moveStage}
-        empty="Nothing marked Live yet. Set a project's Status to Live and it moves here." />;
+        empty="Nothing Running yet. Set a project's Status to Running and it moves here." />;
     case 'apps/archived':
-      return <ProjectsGrid rows={projects.filter((p) => p.status === 'archived')}
+      return <ProjectsGrid rows={projects.filter((p) => PUT_AWAY.includes(p.status))}
         store={store} onStage={moveStage}
-        empty="Nothing archived. Set a project's Status to Archived to tuck it away here." />;
+        empty="Nothing closed or archived. Set a project's Status to Closed or Archived to put it away here." />;
     case 'apps/workers':
       return pending(['Worker', 'Building', 'Waiting on', 'Last seen'],
         'The workers are not reporting into this yet.', store);

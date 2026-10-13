@@ -10,7 +10,7 @@ import { clientsZone } from '@/components/views/clients';
 import { upworkZone } from '@/components/views/upwork';
 import { Roadmap, Experiments, Playbook } from '@/components/BtbPlan';
 import { Pulse } from '@/components/Pulse';
-import { Dashboard, Roadmap as GoalRoadmap, Years, Quarters, Actions, YearsGallery, QuartersGallery } from '@/components/GoalNav';
+import { Dashboard, Roadmap as GoalRoadmap, Years, Quarters, Actions, YearsKanban, QuartersKanban } from '@/components/GoalNav';
 import { colorsFor } from '@/lib/palette';
 import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing';
 import { About, Chapters } from '@/components/Book';
@@ -33,12 +33,12 @@ export function renderZone(domain: Domain, tab: Tab, b: Bundle, q = '', view: Vi
   switch (domain.slug) {
     case 'clients': return clientsZone(domain, tab, b, q, view);
     case 'upwork': return upworkZone(domain, tab, b, q, view);
-    case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b);
+    case 'big-tribe-builders': return btbZone(domain, tab, b, view) ?? gridZone(domain, tab, b, view);
     case 'goal-navigator': return goalZone(domain, tab, b, view);
     case 'mailing': return mailingZone(domain, tab, b, view);
     case 'book': return bookZone(domain, tab, b, view);
     case 'quinb-community': return membersZone(domain, tab, b, view);
-    default: return gridZone(domain, tab, b);
+    default: return gridZone(domain, tab, b, view);
   }
 }
 
@@ -108,21 +108,21 @@ function mailingZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): React
 function goalZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode {
   const store = `lifework.goals.${tab.slug}.cols`;
   const common = { settings: columnsFor(view.columns ?? [], store), accent: domain.accent, store };
-  // Yearly and quarterly goals: a gallery (Trello lists) or the table, and
+  // Yearly and quarterly goals: a Kanban (Trello lists) or the table, and
   // the colour she gave each year or quarter, shared by both.
   const grid = `${domain.slug}/${tab.slug}`;
   const colors = colorsFor(view.groupColors, grid);
   const base = `/d/${domain.slug}/${tab.slug}`;
   const here = view.mode && view.mode !== tab.views?.[0] ? `${base}?view=${view.mode}` : base;
-  const gallery = view.mode === 'gallery';
+  const kanban = view.mode === 'kanban';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Brussels' });
   const body =
     tab.slug === 'roadmap' ? <GoalRoadmap goals={b.goalQuarters} actions={b.goalActions} {...common} />
-    : tab.slug === 'years' ? (gallery
-      ? <YearsGallery rows={b.goalYears} quarters={b.goalQuarters} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
+    : tab.slug === 'years' ? (kanban
+      ? <YearsKanban rows={b.goalYears} quarters={b.goalQuarters} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
       : <Years rows={b.goalYears} colors={colors} grid={grid} {...common} />)
-    : tab.slug === 'quarters' ? (gallery
-      ? <QuartersGallery rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
+    : tab.slug === 'quarters' ? (kanban
+      ? <QuartersKanban rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} colors={colors} grid={grid} here={here} peek={view.peek} />
       : <Quarters rows={b.goalQuarters} years={b.goalYears} actions={b.goalActions} colors={colors} grid={grid} {...common} />)
     : tab.slug === 'actions' ? <Actions rows={b.goalActions} goals={b.goalQuarters} {...common} />
     : <Dashboard goals={b.goalQuarters} actions={b.goalActions} today={today} {...common} />;
@@ -156,10 +156,13 @@ function btbZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNode
   );
 }
 
-function gridZone(domain: Domain, tab: Tab, b: Bundle): ReactNode {
+function gridZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts = {}): ReactNode {
+  // The view and the colours for a tab that offers a Kanban (Vibe Coding › Stages).
+  const grid = `${domain.slug}/${tab.slug}`;
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
-      <ZoneGrid domain={domain.slug} tab={tab.slug} blurb={tab.blurb} b={b} />
+      <ZoneGrid domain={domain.slug} tab={tab.slug} blurb={tab.blurb} b={b}
+        view={{ mode: view.mode, colors: colorsFor(view.groupColors, grid), grid }} />
     </Portal>
   );
 }

@@ -12,7 +12,7 @@ import { saveGridColumn } from '@/app/d/actions';
 import { Grid, type Column } from '@/components/Grid';
 import { EditableCell } from '@/components/EditableCell';
 import { AddRow, Remove, Sel, DateCell, OpenArrow } from '@/components/rowkit';
-import { Gallery, type GalleryList } from '@/components/Gallery';
+import { Kanban, type KanbanList } from '@/components/Kanban';
 import { Field, CloseLink, usePanelKeys } from '@/components/panel';
 
 /**
@@ -52,7 +52,7 @@ export function Pipeline({ rows, mode, here, peek, colors, grid, settings, accen
         { key: 'url', placeholder: 'Upwork link (https://www.upwork.com/jobs/~02…)', wide: true },
         { key: 'fit', placeholder: 'Fit', options: fitOpts },
       ]} />
-      {mode === 'gallery'
+      {mode === 'kanban'
         ? <Board rows={rows} here={here} colors={colors} grid={grid} />
         : <Table rows={rows} here={here} settings={settings} accent={accent} store={store} />}
       {open ? <JobPanel key={open.id} job={open} closeHref={here} /> : null}
@@ -63,11 +63,11 @@ export function Pipeline({ rows, mode, here, peek, colors, grid, settings, accen
 // ----------------------------------------------------------------- board
 
 function Board({ rows, here, colors, grid }: { rows: UpworkJob[]; here: string; colors: Record<string, PaletteKey>; grid: string }) {
-  const lists: GalleryList<UpworkJob>[] = JOB_STATUSES
+  const lists: KanbanList<UpworkJob>[] = JOB_STATUSES
     .filter((s) => ALWAYS.includes(s) || rows.some((r) => r.status === s))
     .map((s) => ({ key: s, title: JOB_STATUS[s], items: rows.filter((r) => r.status === s).sort(newestFirst) }));
   return (
-    <Gallery grid={grid} lists={lists} colors={colors} label="Job pipeline" itemKey={(r) => r.id}
+    <Kanban grid={grid} lists={lists} colors={colors} label="Job pipeline" itemKey={(r) => r.id}
       href={(r) => peekHref(here, r.id)} card={(r) => (
         <>
           <span className="gcard__labels">

@@ -7,23 +7,25 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { tintClass, paletteFor, type PaletteKey } from '@/lib/palette';
 
 /**
- * The gallery, after Trello (Giulia, 10 Oct 2026): one list per group, side
- * by side, cards stacked in each. The standard for every space that offers
- * a gallery next to its table.
+ * The Kanban board, after Trello (Giulia, 10 Oct 2026): one list per group,
+ * side by side, cards stacked in each. The standard for every space that
+ * offers a board next to its table. (Called Gallery until 13 Oct 2026: she
+ * named it for what it is, a Kanban.)
  *
- *   .gallery         the row of lists; scrolls sideways when they do not fit
+ *   .kanban          the row of lists; scrolls sideways when they do not fit
  *   .glist           one list: a group (a year, a quarter). Grey, or the
  *                    palette colour she gave it with the dot in its header
  *   .gcard           one card. Labels on top (.gcard__labels), the title
  *                    (.gcard__title), then the footer (.gcard__foot): small
  *                    counts and dates (.gcard__badge) and who works on it
- *                    (.avatar). A card opens the panel on the right.
+ *                    (.avatar). A card opens the panel on the right, or,
+ *                    as .gcard--still, holds controls of its own.
  *   .glist__add      "+ Add …" at the bottom of a list
  *
  * The colour of a group is shared with the table's fold for the same group.
  */
 
-export type GalleryList<T> = {
+export type KanbanList<T> = {
   /** The group: '2026', '2026-Q4'. Also the key its colour is saved under. */
   key: string;
   title: string;
@@ -38,20 +40,21 @@ export type GalleryList<T> = {
 
 type Result = { error: string | null };
 
-export function Gallery<T>({ grid, lists, colors, itemKey, href, card, label }: {
+export function Kanban<T>({ grid, lists, colors, itemKey, href, card, label }: {
   /** The collection the colours are saved under: 'goal-navigator/years'. */
   grid: string;
-  lists: GalleryList<T>[];
+  lists: KanbanList<T>[];
   colors: Record<string, PaletteKey>;
   itemKey: (item: T) => string;
-  /** Where a card goes: the panel for that item. */
-  href: (item: T) => string;
+  /** Where a card goes: the panel for that item. Without it a card is not a
+      link, and holds its own controls (a dropdown, links of its own). */
+  href?: (item: T) => string;
   card: (item: T) => ReactNode;
   /** What the lists hold, for screen readers: 'Yearly goals'. */
   label: string;
 }) {
   return (
-    <div className="gallery" role="region" aria-label={label}>
+    <div className="kanban" role="region" aria-label={label}>
       {lists.map((l) => {
         const color = colors[l.key] ?? null;
         return (
@@ -69,7 +72,9 @@ export function Gallery<T>({ grid, lists, colors, itemKey, href, card, label }: 
                 {l.items.map((it) => (
                   <li key={itemKey(it)}>
                     {/* No aria-label: the card's own words (title, labels, counts) are its name. */}
-                    <Link href={href(it)} scroll={false} className="gcard">{card(it)}</Link>
+                    {href
+                      ? <Link href={href(it)} scroll={false} className="gcard">{card(it)}</Link>
+                      : <div className="gcard gcard--still">{card(it)}</div>}
                   </li>
                 ))}
               </ol>

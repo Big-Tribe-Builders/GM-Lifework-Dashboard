@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useColumnWidths, ResizeHandle } from '@/components/table';
 import { FieldIcon } from '@/components/FieldIcon';
 import { ColumnDialog } from '@/components/ColumnDialog';
@@ -29,6 +29,9 @@ export type Column<T> = {
   numeric?: boolean;
   /** A column of buttons: no field glyph, no name, no resize edge. */
   bare?: boolean;
+  /** An icon in the header instead of the field glyph and name; the name is
+      then its tooltip and what a screen reader hears. */
+  glyph?: ReactNode;
   render: (row: T) => ReactNode;
 };
 
@@ -75,6 +78,29 @@ export function Grid<T>({
   const iconOf = (c: Column<T>) => settings[c.key]?.icon ?? c.type;
   const editing = editingKey ? columns.find((c) => c.key === editingKey) : undefined;
 
+  // Always in view (Giulia, 13 Oct 2026): the table scrolls inside itself, so
+  // its header row and its sideways scrollbar stay on the screen. Here it is
+  // fitted to the room left under it, so it ends at the bottom of the screen
+  // and the page around it does not scroll. A table further down a long page
+  // keeps the CSS default: the height of the screen under the chrome.
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const fit = () => {
+      const room = Math.floor(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY));
+      const want = room >= Math.min(320, window.innerHeight / 2) ? `${room}px` : '';
+      if (el.style.getPropertyValue('--grid-fit') === want) return;
+      if (want) el.style.setProperty('--grid-fit', want); else el.style.removeProperty('--grid-fit');
+    };
+    fit();
+    // What sits above the table can change (a note, an error, a form opening).
+    const watch = new ResizeObserver(fit);
+    watch.observe(document.body);
+    window.addEventListener('resize', fit);
+    return () => { watch.disconnect(); window.removeEventListener('resize', fit); };
+  }, []);
+
   /** The rows of one run — the whole table, or one fold of it. */
   function body(list: T[], none: string) {
     if (list.length === 0) {
@@ -99,7 +125,7 @@ export function Grid<T>({
 
   return (
     <div className={accent ? `grid2 accent-${accent}` : 'grid2'}>
-      <div className="grid2__scroll">
+      <div className="grid2__scroll" ref={scroller}>
         {/* The table is 100% wide with a minimum of its columns, and carries a
             trailing filler cell. That is what makes every rule run the whole
             width of the page rather than stopping at the last field. */}
@@ -118,7 +144,12 @@ export function Grid<T>({
                   aria-label={c.bare ? c.label : undefined}
                 >
                   {i === 0 ? <span className="grid2__check" aria-hidden="true" /> : null}
-                  {c.bare ? null : onColumnSettings ? (
+                  {c.bare ? null : c.glyph ? (
+                    <span className="grid2__field grid2__field--glyph" title={labelOf(c)}>
+                      {c.glyph}
+                      <span className="sr-only">{labelOf(c)}</span>
+                    </span>
+                  ) : onColumnSettings ? (
                     <button
                       type="button"
                       className="grid2__field grid2__fieldbtn"
