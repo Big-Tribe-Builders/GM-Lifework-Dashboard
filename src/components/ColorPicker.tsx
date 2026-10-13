@@ -7,6 +7,8 @@ import { PALETTE, isPaletteKey, type PaletteKey } from '@/lib/palette';
 type Result = { error: string | null };
 
 const MENU_W = 260;
+/** The menu's height before it is drawn: no colour and the ten colours. */
+const MENU_H = 220;
 const GAP = 4;
 
 /**
@@ -38,19 +40,25 @@ export function ColorPicker({ value, label, onPick }: {
 
   const floating = open || !!error;
 
-  // Under the dot, kept inside the window.
+  // Under the dot, kept inside the window; above it when there is no room
+  // below (a fold near the bottom of a table that fills the screen).
   const place = useCallback(() => {
     const r = button.current?.getBoundingClientRect();
     if (!r) return;
     const left = Math.max(8, Math.min(r.left, window.innerWidth - MENU_W - 8));
-    setAt({ top: r.bottom + GAP, left });
+    const h = menu.current?.offsetHeight || MENU_H;
+    const below = r.bottom + GAP;
+    const top = below + h <= window.innerHeight - 8 ? below : Math.max(8, r.top - GAP - h);
+    setAt({ top, left });
   }, []);
   useLayoutEffect(() => {
     if (!floating) return;
     place();
+    // Once more when the menu is drawn and its real height is known.
+    const again = requestAnimationFrame(place);
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);
-    return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
+    return () => { cancelAnimationFrame(again); window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
   }, [floating, place]);
 
   const close = useCallback((refocus: boolean) => {

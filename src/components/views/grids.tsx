@@ -296,8 +296,9 @@ function ActiveList({ rows, store, empty, onStage, onFocus, error, sync, colors,
  * by its handle (≡): drag it to its place, or, on the handle, press arrow
  * up or down. The list is then numbered 1, 2, 3 … as it reads.
  */
-function FocusList({ rows, store, onNumbers, error, sync }: {
-  rows: CodeProject[]; store: string; error: string | null; sync: ProjectsSync | null; onNumbers: Focus['onNumbers'];
+function FocusList({ rows, store, onNumbers, onFocus, error, sync }: {
+  rows: CodeProject[]; store: string; error: string | null; sync: ProjectsSync | null;
+  onNumbers: Focus['onNumbers']; onFocus: Focus['onFocus'];
 }) {
   const list = [...rows].sort(byPriority);
   // The line being dragged, and where it would land: before or after another line.
@@ -322,6 +323,8 @@ function FocusList({ rows, store, onNumbers, error, sync }: {
           aria-label={`Move ${p.name}: drag, or press arrow up or down`} title="Drag to move"
           onPointerDown={(e) => {
             if (e.button !== 0) return;
+            // Safari and Firefox on a Mac do not focus a clicked button; the arrows need it.
+            e.currentTarget.focus();
             e.currentTarget.setPointerCapture(e.pointerId);
             setDrag({ id: p.sessionId, over: null, after: false });
           }}
@@ -347,7 +350,15 @@ function FocusList({ rows, store, onNumbers, error, sync }: {
           }}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M3 5h10M3 8h10M3 11h10" /></svg>
         </button>
-        <span className="focusorder__num">{p.priority ?? '—'}</span>
+        {/* Its place in the list, always 1, 2, 3 …, whatever is stored. */}
+        <span className="focusorder__num">{list.indexOf(p) + 1}</span>
+      </span>
+    ) },
+    // Whatever its stage, a project stays here until she unticks it (Giulia, 13 Oct 2026).
+    { key: 'now', label: 'Working on', type: 'check', width: 48, fixed: true, glyph: HAMMER, render: (p) => (
+      <span className="flagcell">
+        <input type="checkbox" className="flagcell__box" checked={!!p.workingOn} aria-label={`Working on ${p.name}`}
+          onChange={(e) => onFocus(p, e.target.checked)} />
       </span>
     ) },
     PROJECT_COLS[0],
@@ -615,7 +626,7 @@ export function ZoneGrid({ domain, tab, blurb, b, view = {} }: {
 
     // ---------------------------------------------------------------- apps
     case 'apps/focus':
-      return <FocusList rows={inFocus} store={store} onNumbers={focus.onNumbers} error={writeError} sync={b.projectsSync} />;
+      return <FocusList rows={inFocus} store={store} onNumbers={focus.onNumbers} onFocus={focus.onFocus} error={writeError} sync={b.projectsSync} />;
     case 'apps/building':
       return <ActiveList rows={projects.filter((p) => p.status === 'building')}
         store={store} onStage={moveStage} onFocus={focus.onFocus} error={writeError} sync={b.projectsSync}
