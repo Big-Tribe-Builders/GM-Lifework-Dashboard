@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { answerInQuinb } from '@/app/d/quinb/actions';
-import { Grid, type Column } from '@/components/Grid';
 import { matches, searchWords, useSearch, useSearchable } from '@/lib/search';
 import type { Note, NoteStatus, Thread } from '@/lib/mighty';
 
@@ -245,22 +244,4 @@ function Reply({ postId, to, verb, onAnswered, extra }: { postId: number; to: No
       {error ? <p className="field__error" role="alert">{error}</p> : null}
     </div>
   );
-}
-
-/** One newcomer, ready to draw. */
-export type NewcomerRow = { key: string; name: string; email: string | null; joined: string; location: string | null; bio: string | null; link: string | null };
-
-/** QuinB Community › New members: who joined lately, newest first, to welcome them. */
-export function Newcomers({ rows, store, accent }: { rows: NewcomerRow[]; store: string; accent?: string }) {
-  const columns: Column<NewcomerRow>[] = [
-    { key: 'name', label: 'Name', type: 'text', width: 220, render: (r) => <span className="cell">{r.name}</span> },
-    { key: 'joined', label: 'Joined', type: 'date', width: 150, render: (r) => <span className="cell">{r.joined}</span> },
-    { key: 'location', label: 'Location', type: 'text', width: 180, render: (r) => <span className="cell">{r.location || <span className="muted">—</span>}</span> },
-    { key: 'email', label: 'Email', type: 'text', width: 240, render: (r) => <span className="cell">{r.email || <span className="muted">—</span>}</span> },
-    { key: 'bio', label: 'About them', type: 'text', width: 380, render: (r) => <span className="cell cell--clip" title={r.bio ?? ''}>{r.bio || <span className="muted">—</span>}</span> },
-    { key: 'link', label: 'Profile', type: 'link', width: 140, render: (r) => (
-      <span className="cell">{r.link ? <a className="link" href={r.link} target="_blank" rel="noreferrer">Open in QuinB ↗</a> : <span className="muted">—</span>}</span>
-    ) },
-  ];
-  return <Grid rows={rows} columns={columns} rowKey={(r) => r.key} store={store} accent={accent} empty="Nobody new in the last 30 days." />;
 }

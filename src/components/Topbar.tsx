@@ -10,6 +10,8 @@ import { DomainSettings } from '@/components/DomainSettings';
 import { Tabs } from '@/components/Tabs';
 import { ClientsBar } from '@/components/ClientsBar';
 import { EmailsBar } from '@/components/EmailsBar';
+import { MembersBar } from '@/components/MembersBar';
+import { MemberFilterMenu } from '@/components/MemberFilterMenu';
 import { TabHelp } from '@/components/TabHelp';
 import { ToolbarSearch } from '@/components/ToolbarSearch';
 
@@ -39,6 +41,7 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
   if (domain) {
     const tab = findTab(domain, parts[3]);
     const isClients = domain.slug === 'clients';
+    const isMembers = domain.slug === 'quinb-community' && tab.slug === 'members';
     return (
       <header className={`chrome accent-${domain.accent}`}>
         {/* Left, the domain. Middle, where you are inside it — the tab now,
@@ -71,8 +74,12 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
               ? <Suspense fallback={<ViewGlyph mode={tab.views![0]} />}><CurrentViewGlyph tab={tab} /></Suspense>
               : <ViewGlyph mode="table" />}
           </span>
-          <span className="chrome__view">{tab.label}</span>
-          <Caret />
+          {/* Members: the name is the filter, "All members ⌄". */}
+          {isMembers ? (
+            <Suspense fallback={<><span className="chrome__view">{tab.label}</span><Caret /></>}><MemberFilterMenu /></Suspense>
+          ) : (
+            <><span className="chrome__view">{tab.label}</span><Caret /></>
+          )}
           <TabHelp tab={tab} domainLabel={domain.label} />
           <div className="chrome__spacer" />
           <Suspense fallback={null}>
@@ -80,6 +87,7 @@ export function Topbar({ pins, overrides = {} }: { pins: Pin[]; overrides?: Reco
           </Suspense>
           {isClients && tab.slug === 'all' ? <Suspense fallback={null}><ClientsBar part="add" /></Suspense> : null}
           {isClients && tab.slug === 'emails' ? <EmailsBar /> : null}
+          {isMembers ? <MembersBar /> : null}
           {(tab.views?.length ?? 0) > 1 ? (
             <Suspense fallback={null}>
               <ViewSwitch tab={tab} path={pathname} />

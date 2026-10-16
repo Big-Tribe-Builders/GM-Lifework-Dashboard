@@ -15,7 +15,7 @@
 
 export const MIGHTY_ENV = { key: 'MIGHTY_API_KEY', network: 'MIGHTY_NETWORK_ID' } as const;
 
-/** How far back the Comments and New members tabs look. */
+/** How far back the Conversations tab looks. */
 export const LOOK_BACK_DAYS = 30;
 
 const BASE = 'https://api.mn.co/admin/v1';
@@ -94,8 +94,6 @@ export type Thread = {
   /** Its comments could not be read (or only part of them): then nothing in it gets a status. */
   unread: string | null;
 };
-
-export type Newcomer = { id: number; name: string; email: string | null; joined: string; location: string | null; bio: string | null; link: string | null };
 
 // ------------------------------------------------------------------- calls
 
@@ -326,22 +324,6 @@ export async function readConversations(): Promise<{ threads: Thread[]; more: nu
   const myName = me.data.user?.name?.trim() || nameOfMember(people.get(myId), myId);
 
   return { threads: threadsOf(myId, myName, live, comments, people, spaceNames, since, sub, unread), more: active.length - live.length };
-}
-
-/** Members who joined in the last LOOK_BACK_DAYS days, newest first. */
-export async function readNewcomers(): Promise<{ items: Newcomer[] } | { error: string }> {
-  const me = await call<MnMe>('/me');
-  if ('error' in me) return me;
-  const sub = me.data.network?.subdomain ?? null;
-  const members = await all<MnMember>('/members', 50);
-  if ('error' in members) return members;
-  const since = sinceMs(LOOK_BACK_DAYS);
-  return {
-    items: members.data
-      .filter((m) => ms(m.created_at) >= since && m.id !== me.data.user?.id)
-      .sort((a, b) => ms(b.created_at) - ms(a.created_at))
-      .map((m) => ({ id: m.id, name: nameOfMember(m, m.id), email: m.email, joined: m.created_at, location: m.location, bio: m.bio, link: linkOf(m.permalink, sub) })),
-  };
 }
 
 // ----------------------------------------------------------------- writing

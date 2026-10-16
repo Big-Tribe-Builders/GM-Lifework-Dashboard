@@ -1219,6 +1219,19 @@ button.row {
   color: var(--ink);
 }
 
+/* A toolbar name that is a choice (QuinB Community › Members: "All members ⌄"). */
+.viewmenu { position: relative; display: inline-flex; align-items: center; }
+.viewmenu__btn { display: inline-flex; align-items: center; gap: 2px; margin-left: -6px; padding: 3px 4px 3px 6px; border: 0; border-radius: 6px; background: none; font: inherit; cursor: pointer; }
+.viewmenu__btn:hover, .viewmenu__btn[aria-expanded='true'] { background: var(--grey-100); }
+.viewmenu__btn:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.viewmenu__pop { left: -6px; right: auto; min-width: 250px; }
+/* The name, and under it what it means. */
+.viewmenu__label, .viewmenu__hint { display: block; }
+.viewmenu__item--on { background: var(--grey-100); }
+.viewmenu__item--on .viewmenu__label { font-weight: 600; }
+.viewmenu__item:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: -2px; }
+.viewmenu__hint { margin-top: 1px; font-size: 12px; color: var(--muted); }
+
 .chrome__tool .clientsearch { height: 28px; width: 220px; }
 .chrome__tool .btn { padding: 5px 11px; font-size: 13px; }
 

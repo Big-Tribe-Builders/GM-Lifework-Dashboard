@@ -1,12 +1,14 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import type { QuinbMember } from '@/lib/book';
 import type { ColumnSetting } from '@/lib/grid';
-import { addMember, updateMember, removeMember } from '@/app/d/quinb/actions';
+import { updateMember, removeMember } from '@/app/d/quinb/actions';
 import { saveGridColumn } from '@/app/d/actions';
 import { Grid, type Column } from '@/components/Grid';
 import { EditableCell } from '@/components/EditableCell';
-import { AddRow, Remove, DateCell } from '@/components/rowkit';
+import { Remove, DateCell } from '@/components/rowkit';
+import { INACTIVE_DAYS, MEMBER_FILTER_PARAM, NEW_DAYS, inFilter, memberFilterOf } from '@/lib/members';
 
 /** How long since a date, in years and months: "2 y 3 m", "5 m", "less than a month". */
 function since(iso: string | null): string {
@@ -21,11 +23,16 @@ function since(iso: string | null): string {
   return [y ? `${y} y` : '', m ? `${m} m` : ''].filter(Boolean).join(' ');
 }
 
-/** QuinB Community › Members. Loaded from the Mighty Networks export until the network can be read. */
+/**
+ * QuinB Community › Members: one list, with new and inactive members as
+ * filters picked in the toolbar ("All members ⌄"), and Add member next to
+ * the search there (Giulia, 16 Oct 2026).
+ */
 export function Members({ rows, settings, accent, store }: {
   rows: QuinbMember[]; settings?: Record<string, ColumnSetting>; accent?: string; store: string;
 }) {
-  const sorted = [...rows].sort((a, b) => a.name.localeCompare(b.name) || (a.email ?? '').localeCompare(b.email ?? '') || a.id.localeCompare(b.id));
+  const filter = memberFilterOf(useSearchParams().get(MEMBER_FILTER_PARAM));
+  const sorted = rows.filter((m) => inFilter(m, filter)).sort((a, b) => a.name.localeCompare(b.name) || (a.email ?? '').localeCompare(b.email ?? '') || a.id.localeCompare(b.id));
   const text = (field: 'name' | 'email' | 'notes', label: string) => (r: QuinbMember) => (
     <EditableCell kind="text" value={r[field]} label={`${label} of ${r.name}`} onSave={(v) => updateMember(r.id, field, v)} />
   );
@@ -41,16 +48,13 @@ export function Members({ rows, settings, accent, store }: {
     { key: 'notes', label: 'Notes', type: 'text', width: 320, render: text('notes', 'Notes') },
     { key: 'del', label: 'Delete', type: 'text', width: 60, bare: true, render: (r) => <Remove what={r.name} onRemove={() => removeMember(r.id)} /> },
   ];
+  const empty = filter === 'new' ? `Nobody joined in the last ${NEW_DAYS} days.`
+    : filter === 'inactive' ? `Everyone has visited in the last ${INACTIVE_DAYS} days.`
+    : 'No members yet. Add one with + Add member.';
   return (
     <div className="mailstack">
-      <AddRow label="+ Add member" onAdd={(f) => addMember(f)} fields={[
-        { key: 'name', placeholder: 'Name' }, { key: 'email', placeholder: 'Email', type: 'email' },
-        { key: 'memberSince', placeholder: 'Member since', type: 'date' }, { key: 'lastLogin', placeholder: 'Last visit', type: 'date' },
-        { key: 'interactions', placeholder: 'Interactions', type: 'number' },
-      ]} />
       <Grid rows={sorted} columns={columns} rowKey={(r) => r.id} store={store} settings={settings} accent={accent}
-        onColumnSettings={(k, i) => saveGridColumn(store, k, i)}
-        empty="No members yet. They are loaded from the Mighty Networks member export." />
+        onColumnSettings={(k, i) => saveGridColumn(store, k, i)} empty={empty} />
     </div>
   );
 }
