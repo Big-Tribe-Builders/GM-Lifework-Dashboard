@@ -53,20 +53,44 @@ export type MnMember = {
   location: string | null; bio: string | null; avatar: string | null; permalink: string | null; member_type: string | null;
 };
 type MnMe = { user: { id: number; name: string | null; email: string | null }; network: { id: number; subdomain: string | null; title: string | null } };
+type MnSpace = { id: number; name: string };
 
-/** One thing in the community that waits for her: a member's post or comment she has not answered. */
-export type Waiting = {
+/** Whether a member's post or comment of the last LOOK_BACK_DAYS days has an answer from her. */
+export type NoteStatus = 'waiting' | 'answered';
+
+/** One post or comment in a conversation. */
+export type Note = {
   kind: 'post' | 'comment';
   id: number;
-  postId: number;
-  postTitle: string;
-  authorId: number;
+  /** "You" for her own. */
+  author: string;
+  /** The real name, for the initials when there is no picture. */
   authorName: string;
+  avatar: string | null;
+  mine: boolean;
   text: string;
   at: string;
+  /** A reply to a comment, drawn indented under the comment it belongs to. */
+  reply: boolean;
+  /** Written in the last LOOK_BACK_DAYS days. */
+  recent: boolean;
+  /** Only for someone else's post or comment of the last LOOK_BACK_DAYS days. */
+  status: NoteStatus | null;
   link: string | null;
-  /** For a comment that answers someone else: what it answers. */
-  inReplyTo: string | null;
+};
+
+/** A post and everything said under it, the way the community shows it. */
+export type Thread = {
+  postId: number;
+  title: string | null;
+  space: string | null;
+  post: Note;
+  /** Oldest first; each reply right after the comment it belongs to. */
+  comments: Note[];
+  /** The last thing written in it. */
+  lastAt: string;
+  waiting: number;
+  answered: number;
 };
 
 export type Newcomer = { id: number; name: string; email: string | null; joined: string; location: string | null; bio: string | null; link: string | null };
@@ -155,10 +179,14 @@ async function pool<X, Y>(xs: X[], size: number, fn: (x: X) => Promise<Y>): Prom
 /** Comment and post bodies come as HTML. This keeps the words and the line breaks, nothing else. */
 export function plainText(html: string | null | undefined): string {
   return (html ?? '')
-    .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\/\s*(p|div|li|h\d)\s*>/gi, '\n')
+    // <br dir="auto"> as well as <br> and <br/>: Mighty writes the first.
+    .replace(/<\s*br\b[^>]*>/gi, '\n')
+    .replace(/<\/\s*(p|div|li|h\d|blockquote)\s*>/gi, '\n')
     .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&amp;/g, '&')
     .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
@@ -173,46 +201,80 @@ export function linkOf(permalink: string | null | undefined, subdomain: string |
 export const nameOfMember = (m: Pick<MnMember, 'first_name' | 'last_name' | 'email'> | undefined, id: number) =>
   [m?.first_name, m?.last_name].filter(Boolean).join(' ') || m?.email || `Member ${id}`;
 
-/**
- * What waits for her, from posts and their comments:
- *   - a comment by someone else that she has not answered (no comment of hers replies to it);
- *   - a post by someone else with no comment of hers on it at all.
- * Only what was written since `since`. Newest first.
- */
 /** Milliseconds of an instant; the API writes offsets as +00:00 or Z, so strings are not compared. */
 const ms = (s: string | null | undefined) => { const t = s ? Date.parse(s) : NaN; return Number.isNaN(t) ? 0 : t; };
 
-export type RawWaiting = Omit<Waiting, 'authorName' | 'link'> & { permalink: string | null };
-
-export function waitingFor(me: number, posts: MnPost[], comments: Map<number, MnComment[]>, since: number): RawWaiting[] {
-  const out: RawWaiting[] = [];
+/**
+ * The conversations of the last stretch: every post written since `since`,
+ * or with a comment written since then, with all its comments. Newest
+ * activity first.
+ *
+ * Answered (Giulia, 16 Oct 2026: "filter with answered and unanswered"):
+ *   - someone else's post: once she has commented on it;
+ *   - someone else's comment: once she has written in its branch after it
+ *     (a reply to it, or a later reply under the same comment). Mighty may
+ *     point a reply at the comment above it or at the first one, so the
+ *     branch is what counts, not the exact comment replied to.
+ * Only what was written since `since` gets a status; older is context.
+ */
+export function threadsOf(
+  me: number, myName: string, posts: MnPost[], comments: Map<number, MnComment[]>,
+  people: Map<number, MnMember>, spaces: Map<number, string>, since: number, subdomain: string | null,
+): Thread[] {
+  const nameOf = (id: number) => (id === me ? myName : nameOfMember(people.get(id), id));
+  const out: Thread[] = [];
   for (const p of posts) {
-    const cs = comments.get(p.id) ?? [];
-    const byId = new Map(cs.map((c) => [c.id, c]));
-    const answered = new Set(cs.filter((c) => c.author_id === me && c.reply_to_id != null).map((c) => c.reply_to_id as number));
-    const postTitle = p.title?.trim() || plainText(p.summary ?? p.description).slice(0, 80) || `Post ${p.id}`;
+    const cs = [...(comments.get(p.id) ?? [])].sort((a, b) => ms(a.created_at) - ms(b.created_at));
     const postAt = p.published_at ?? p.created_at;
-    if (p.creator_id !== me && ms(postAt) >= since && !cs.some((c) => c.author_id === me)) {
-      out.push({ kind: 'post', id: p.id, postId: p.id, postTitle, authorId: p.creator_id, text: plainText(p.description ?? p.summary), at: postAt, inReplyTo: null, permalink: p.permalink });
-    }
-    for (const c of cs) {
-      if (c.author_id === me || ms(c.created_at) < since || answered.has(c.id)) continue;
-      const parent = c.reply_to_id != null ? byId.get(c.reply_to_id) : undefined;
-      out.push({
-        kind: 'comment', id: c.id, postId: p.id, postTitle, authorId: c.author_id, text: plainText(c.text), at: c.created_at,
-        inReplyTo: parent ? plainText(parent.text).slice(0, 140) : null, permalink: c.permalink,
-      });
-    }
+    if (ms(postAt) < since && !cs.some((c) => ms(c.created_at) >= since)) continue;
+
+    const byId = new Map(cs.map((c) => [c.id, c]));
+    // The top-level comment a reply hangs under, however deep it is.
+    const rootOf = (c: MnComment) => {
+      let x = c;
+      for (let n = 0; x.reply_to_id != null && byId.has(x.reply_to_id) && n < 50; n++) x = byId.get(x.reply_to_id)!;
+      return x.id;
+    };
+    const roots = new Map(cs.map((c) => [c.id, rootOf(c)]));
+    const mineIn = (root: number, after: number) => cs.some((m) => m.author_id === me && roots.get(m.id) === root && ms(m.created_at) > after);
+
+    const note = (kind: Note['kind'], id: number, authorId: number, html: string | null | undefined, at: string, permalink: string | null, reply: boolean, answered: () => boolean): Note => {
+      const mine = authorId === me;
+      const recent = ms(at) >= since;
+      return {
+        kind, id, author: mine ? 'You' : nameOf(authorId), authorName: nameOf(authorId), avatar: people.get(authorId)?.avatar || null, mine,
+        text: plainText(html), at, reply, recent, status: mine || !recent ? null : answered() ? 'answered' : 'waiting', link: linkOf(permalink, subdomain),
+      };
+    };
+
+    const post = note('post', p.id, p.creator_id, p.description || p.summary, postAt, p.permalink, false, () => cs.some((c) => c.author_id === me));
+    // Each top-level comment, then the replies under it.
+    const ordered = cs.filter((c) => roots.get(c.id) === c.id).flatMap((top) => [top, ...cs.filter((c) => c.id !== top.id && roots.get(c.id) === top.id)]);
+    const notes = ordered.map((c) => note('comment', c.id, c.author_id, c.text, c.created_at, c.permalink, c.id !== roots.get(c.id), () => mineIn(roots.get(c.id)!, ms(c.created_at))));
+    const items = [post, ...notes];
+    out.push({
+      postId: p.id,
+      title: p.title?.trim() || null,
+      space: p.space_id != null ? spaces.get(p.space_id) ?? null : null,
+      post,
+      comments: notes,
+      lastAt: items.reduce((a, n) => (ms(n.at) > ms(a) ? n.at : a), postAt),
+      waiting: items.filter((n) => n.status === 'waiting').length,
+      answered: items.filter((n) => n.status === 'answered').length,
+    });
   }
-  return out.sort((a, b) => ms(b.at) - ms(a.at));
+  return out.sort((a, b) => ms(b.lastAt) - ms(a.lastAt));
 }
 
 // ----------------------------------------------------------------- reading
 
 const sinceMs = (days: number) => Date.now() - days * day;
 
-/** Comments and posts by members, last LOOK_BACK_DAYS days, that she has not answered. */
-export async function readWaiting(): Promise<{ items: Waiting[] } | { error: string }> {
+/** The most posts read with their comments on one visit: one call to Mighty each. */
+export const MAX_THREADS = 60;
+
+/** QuinB Community › Conversations: the posts and comments of the last LOOK_BACK_DAYS days. */
+export async function readConversations(): Promise<{ threads: Thread[]; more: number } | { error: string }> {
   const me = await call<MnMe>('/me');
   if ('error' in me) return me;
   const myId = me.data.user?.id;
@@ -221,26 +283,27 @@ export async function readWaiting(): Promise<{ items: Waiting[] } | { error: str
   const since = sinceMs(LOOK_BACK_DAYS);
 
   // The API does not say in which order posts come, so read far enough back to be sure.
-  const posts = await all<MnPost>('/posts', 20);
+  // Names, pictures and spaces come with whole lists: three calls instead of one per person.
+  const [posts, members, spaces] = await Promise.all([
+    all<MnPost>('/posts', 20), all<MnMember>('/members', 50), all<MnSpace>('/spaces', 10),
+  ]);
   if ('error' in posts) return posts;
-  const live = posts.data
+  const active = posts.data
     .filter((p) => ms(p.last_activity_at ?? p.published_at ?? p.created_at) >= since)
-    .sort((a, b) => ms(b.last_activity_at ?? b.created_at) - ms(a.last_activity_at ?? a.created_at))
-    .slice(0, 60);
+    .sort((a, b) => ms(b.last_activity_at ?? b.created_at) - ms(a.last_activity_at ?? a.created_at));
+  const live = active.slice(0, MAX_THREADS);
 
   const lists = await pool(live, 6, (p) => all<MnComment>(`/posts/${p.id}/comments`, 3));
   const failed = lists.find((x): x is { error: string } => 'error' in x);
   if (failed) return failed;
   const comments = new Map(live.map((p, i) => [p.id, (lists[i] as { data: MnComment[] }).data]));
 
-  const raw = waitingFor(myId, live, comments, since);
-  const authors = [...new Set(raw.map((w) => w.authorId))].slice(0, 80);
-  const found = await pool(authors, 6, (id) => call<MnMember>(`/members/${id}/`));
-  const people = new Map(authors.map((id, i) => [id, 'data' in found[i] ? (found[i] as { data: MnMember }).data : undefined]));
+  // Without the member or space list the conversations still show, with "Member 123" and no space.
+  const people = new Map('data' in members ? members.data.map((m) => [m.id, m]) : []);
+  const spaceNames = new Map('data' in spaces ? spaces.data.map((s) => [s.id, s.name]) : []);
+  const myName = me.data.user?.name?.trim() || nameOfMember(people.get(myId), myId);
 
-  return {
-    items: raw.map(({ permalink, ...w }) => ({ ...w, authorName: nameOfMember(people.get(w.authorId), w.authorId), link: linkOf(permalink, sub) })),
-  };
+  return { threads: threadsOf(myId, myName, live, comments, people, spaceNames, since, sub), more: active.length - live.length };
 }
 
 /** Members who joined in the last LOOK_BACK_DAYS days, newest first. */

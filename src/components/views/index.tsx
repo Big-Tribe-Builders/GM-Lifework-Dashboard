@@ -16,7 +16,7 @@ import { Lists, Templates, Campaigns, type MailData } from '@/components/Mailing
 import { About, Chapters } from '@/components/Book';
 import { Members } from '@/components/QuinbMembers';
 import { Plan, PostTypes, Posts } from '@/components/QuinbContent';
-import { CommentsTab, NewMembersTab } from '@/components/QuinbLive';
+import { ConversationsTab, NewMembersTab } from '@/components/QuinbLive';
 import { todayIso } from '@/lib/calendar';
 import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
@@ -56,7 +56,7 @@ function bookZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): ReactNod
 }
 
 /**
- * QuinB Community: Comments and New members read the network itself; Mails is
+ * QuinB Community: Conversations and New members read the network itself; Mails is
  * the Mailing system narrowed to QuinB Academy; the rest is the content plan
  * and the member list.
  */
@@ -66,7 +66,7 @@ function membersZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): React
   const today = todayIso();
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
-      {tab.slug === 'comments' ? <CommentsTab />
+      {tab.slug === 'conversations' ? <ConversationsTab />
         : tab.slug === 'new-members' ? <NewMembersTab members={b.quinbMembers} store={store} accent={domain.accent} />
         : tab.slug === 'upcoming' ? <Posts rows={b.quinbPosts.filter((p) => !!p.plannedFor && p.plannedFor >= today && p.status !== 'posted' && p.status !== 'cancelled')}
             types={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={base}

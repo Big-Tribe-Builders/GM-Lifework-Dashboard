@@ -1,9 +1,9 @@
 import type { QuinbMember } from '@/lib/book';
-import { mightyReady, readWaiting, readNewcomers, LOOK_BACK_DAYS, MIGHTY_ENV } from '@/lib/mighty';
-import { Inbox, Newcomers, type InboxItem, type NewcomerRow } from '@/components/QuinbInbox';
+import { mightyReady, readConversations, readNewcomers, LOOK_BACK_DAYS, MAX_THREADS, MIGHTY_ENV, type Note } from '@/lib/mighty';
+import { Conversations, Newcomers, type NewcomerRow, type NoteView, type ThreadView } from '@/components/QuinbInbox';
 
 /**
- * The two tabs that read the QuinB network itself: Comments and New members.
+ * The two tabs that read the QuinB network itself: Conversations and New members.
  * Server components: the key never reaches the browser, and every visit
  * reads fresh. Without the key they say exactly what is missing.
  */
@@ -51,22 +51,16 @@ function Failed({ error }: { error: string }) {
   );
 }
 
-/** QuinB Community › Comments. */
-export async function CommentsTab() {
+/** QuinB Community › Conversations. */
+export async function ConversationsTab() {
   const ready = mightyReady();
-  if (!ready.ok) return <Missing missing={ready.missing} wrong={ready.wrong} what="Member comments" />;
-  const r = await readWaiting();
+  if (!ready.ok) return <Missing missing={ready.missing} wrong={ready.wrong} what="Conversations" />;
+  const r = await readConversations();
   if ('error' in r) return <Failed error={r.error} />;
-  const items: InboxItem[] = r.items.map((w) => ({
-    key: `${w.kind}-${w.id}`, kind: w.kind, id: w.id, postId: w.postId, postTitle: w.postTitle, authorName: w.authorName,
-    text: w.text, when: when(w.at), link: w.link, inReplyTo: w.inReplyTo,
-  }));
-  return (
-    <div className="mailstack">
-      <p className="tabnote">{items.length ? `${items.length} waiting for you` : 'All answered'} · member posts and comments of the last {LOOK_BACK_DAYS} days with no answer from you, newest first.</p>
-      <Inbox items={items} />
-    </div>
-  );
+  // Dates are written here, once, so the browser draws exactly what the server did.
+  const view = (n: Note): NoteView => ({ ...n, when: when(n.at) });
+  const threads: ThreadView[] = r.threads.map((t) => ({ ...t, post: view(t.post), comments: t.comments.map(view) }));
+  return <Conversations threads={threads} more={r.more} days={LOOK_BACK_DAYS} max={MAX_THREADS} />;
 }
 
 /** QuinB Community › New members. Live from the network; from the Members tab until the key is there. */
