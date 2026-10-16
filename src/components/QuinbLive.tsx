@@ -15,20 +15,20 @@ const dayOf = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00Z` :
   timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: 'numeric',
 });
 
-function Missing({ missing, what }: { missing: string[]; what: string }) {
+function Missing({ missing, wrong, what }: { missing: string[]; wrong: string[]; what: string }) {
   return (
     <div className="notice">
       <span className="icon-chip icon-chip--sm accent-orange">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 8v5M12 16h.01" /></svg>
       </span>
       <div>
-        <p className="row__title" style={{ fontSize: 14 }}>{what} come straight from the QuinB network. This is built; it waits for {missing.length === 1 ? 'one setting' : 'two settings'} in Vercel.</p>
+        <p className="row__title" style={{ fontSize: 14 }}>{what} come straight from the QuinB network. This is built; it waits for {missing.length + wrong.length === 1 ? 'one setting' : 'two settings'} in Vercel.</p>
         <ul className="muted notice__list">
           {missing.includes(MIGHTY_ENV.key) ? (
-            <li><code>{MIGHTY_ENV.key}</code>: in Mighty Networks, Settings › API Keys › create a key. The Admin API comes with the Scale, Growth and Mighty Pro plans; if there is no API Keys page, the QuinB plan does not include it.</li>
+            <li><code>{MIGHTY_ENV.key}</code>: in Mighty Networks, Admin › Integrations › API › create a key. The Admin API comes with the Scale, Growth and Mighty Pro plans; if there is no API page, the QuinB plan does not include it.</li>
           ) : null}
-          {missing.includes(MIGHTY_ENV.network) ? (
-            <li><code>{MIGHTY_ENV.network}</code>: the number of the QuinB network, shown on that same page.</li>
+          {wrong.includes(MIGHTY_ENV.network) ? (
+            <li><code>{MIGHTY_ENV.network}</code> is set, but to neither the network&apos;s number nor its subdomain (small letters, digits and hyphens). Correct it, or delete it: without it the QuinB network is read.</li>
           ) : null}
           <li>Then redeploy. Until then nothing is called and nothing is stored.</li>
         </ul>
@@ -54,7 +54,7 @@ function Failed({ error }: { error: string }) {
 /** QuinB Community › Comments. */
 export async function CommentsTab() {
   const ready = mightyReady();
-  if (!ready.ok) return <Missing missing={ready.missing} what="Member comments" />;
+  if (!ready.ok) return <Missing missing={ready.missing} wrong={ready.wrong} what="Member comments" />;
   const r = await readWaiting();
   if ('error' in r) return <Failed error={r.error} />;
   const items: InboxItem[] = r.items.map((w) => ({
@@ -80,7 +80,7 @@ export async function NewMembersTab({ members, store, accent }: { members: Quinb
       .map((m) => ({ key: m.id, name: m.name, email: m.email, joined: dayOf(m.memberSince!), location: null, bio: m.notes, link: null }));
     return (
       <div className="mailstack">
-        <Missing missing={ready.missing} what="New members" />
+        <Missing missing={ready.missing} wrong={ready.wrong} what="New members" />
         <p className="tabnote">Until then: members from the Members tab whose “member since” falls in the last {LOOK_BACK_DAYS} days.</p>
         <Newcomers rows={rows} store={store} accent={accent} />
       </div>

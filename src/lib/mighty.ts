@@ -1,14 +1,16 @@
 /**
  * The QuinB network on Mighty Networks, by plain HTTP: the Admin API.
  *
- * Needs two server-only settings in Vercel:
- *   MIGHTY_API_KEY     Mighty Networks › Settings › API Keys (the plan must include the Admin API)
- *   MIGHTY_NETWORK_ID  the number of the QuinB network, shown on the same page
- * Without them `mightyReady()` names what is missing and nothing is called.
+ * Server-only settings in Vercel:
+ *   MIGHTY_API_KEY     Mighty Networks › Admin › Integrations › API (the plan must include the Admin API)
+ *   MIGHTY_NETWORK_ID  optional: the network's number or subdomain. Without it, QuinB's own
+ *                      subdomain is used; the spec takes either in the address.
+ * Without the key `mightyReady()` names what is missing and nothing is called.
  *
- * Spec: https://docs.mightynetworks.com/admin-api — base https://api.mn.co,
+ * Spec: https://api.mn.co/admin/v1/spec.json — base https://api.mn.co,
  * Bearer token. Lists come back in pages of at most 100. The page wrapper is
- * not described in the spec, so `itemsOf` accepts the shapes such APIs use.
+ * not described in the spec, so `itemsOf` accepts the shapes such APIs use,
+ * and says so when a page comes in a shape it does not know.
  */
 
 export const MIGHTY_ENV = { key: 'MIGHTY_API_KEY', network: 'MIGHTY_NETWORK_ID' } as const;
@@ -20,12 +22,20 @@ const BASE = 'https://api.mn.co/admin/v1';
 const PER_PAGE = 100;
 const day = 86_400_000;
 
-export function mightyReady(): { ok: true } | { ok: false; missing: string[] } {
-  const missing = [
-    !process.env.MIGHTY_API_KEY && MIGHTY_ENV.key,
-    !/^\d+$/.test(process.env.MIGHTY_NETWORK_ID ?? '') && MIGHTY_ENV.network,
-  ].filter(Boolean) as string[];
-  return missing.length ? { ok: false, missing } : { ok: true };
+/** QuinB's subdomain on Mighty Networks (its network slug), read when MIGHTY_NETWORK_ID is not set. */
+const QUINB_NETWORK = 'quinb';
+/** The spec's two forms of network_id: the number, or the subdomain. */
+const NETWORK_ID = /^(\d+|[a-z][a-z0-9-]+)$/;
+
+// Trimmed: a value pasted into Vercel can carry a space or a line break.
+const apiKey = () => (process.env.MIGHTY_API_KEY ?? '').trim();
+const networkId = () => (process.env.MIGHTY_NETWORK_ID ?? '').trim() || QUINB_NETWORK;
+
+/** missing: not set at all. wrong: set, but to something the API cannot take. */
+export function mightyReady(): { ok: true } | { ok: false; missing: string[]; wrong: string[] } {
+  const missing = apiKey() ? [] : [MIGHTY_ENV.key];
+  const wrong = NETWORK_ID.test(networkId()) ? [] : [MIGHTY_ENV.network];
+  return missing.length || wrong.length ? { ok: false, missing, wrong } : { ok: true };
 }
 
 // ------------------------------------------------------------------ shapes
@@ -67,11 +77,16 @@ type Got<T> = { data: T } | { error: string };
 
 async function call<T>(path: string, init?: { method?: string; body?: unknown }): Promise<Got<T>> {
   const ready = mightyReady();
-  if (!ready.ok) return { error: `${ready.missing.join(' and ')} not set in Vercel.` };
+  if (!ready.ok) {
+    return { error: [
+      ready.missing.length ? `${ready.missing.join(' and ')} not set in Vercel.` : '',
+      ready.wrong.length ? `${ready.wrong.join(' and ')} in Vercel is neither a network number nor a subdomain.` : '',
+    ].filter(Boolean).join(' ') };
+  }
   try {
-    const res = await fetch(`${BASE}/networks/${process.env.MIGHTY_NETWORK_ID}${path}`, {
+    const res = await fetch(`${BASE}/networks/${networkId()}${path}`, {
       method: init?.method ?? 'GET',
-      headers: { Authorization: `Bearer ${process.env.MIGHTY_API_KEY}`, Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { Authorization: `Bearer ${apiKey()}`, Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}) },
       body: init?.body ? JSON.stringify(init.body) : undefined,
       cache: 'no-store',
       signal: AbortSignal.timeout(15_000),
@@ -79,8 +94,9 @@ async function call<T>(path: string, init?: { method?: string; body?: unknown })
     const json = await res.json().catch(() => null);
     if (!res.ok) {
       const why = (json && typeof json === 'object' && 'error' in json) ? String((json as { error: unknown }).error) : res.statusText;
-      if (res.status === 401 || res.status === 403) return { error: `Mighty Networks refused the key (${res.status}): ${why}. Check ${MIGHTY_ENV.key} and that the plan includes the Admin API.` };
-      if (res.status === 404 && path === '/me') return { error: `Mighty Networks does not know network ${process.env.MIGHTY_NETWORK_ID}. Check ${MIGHTY_ENV.network}.` };
+      // The spec's 401 also covers a key that belongs to another network than the one asked for.
+      if (res.status === 401 || res.status === 403) return { error: `Mighty Networks refused the key for network ${networkId()} (${res.status}): ${why}. Check ${MIGHTY_ENV.key}, that it was made in that network, and that the plan includes the Admin API.` };
+      if (res.status === 404 && path === '/me') return { error: `Mighty Networks does not know network ${networkId()}. Check ${MIGHTY_ENV.network}.` };
       return { error: `Mighty Networks answered ${res.status}: ${why}` };
     }
     return { data: json as T };
@@ -89,8 +105,12 @@ async function call<T>(path: string, init?: { method?: string; body?: unknown })
   }
 }
 
-/** The list inside a page, whatever the wrapper is called. */
-export function itemsOf<T>(page: unknown): T[] {
+/**
+ * The list inside a page, whatever the wrapper is called; null when it is in
+ * none of them, so an unknown shape is not mistaken for an empty list (that
+ * would read as "All answered").
+ */
+export function itemsOf<T>(page: unknown): T[] | null {
   if (Array.isArray(page)) return page as T[];
   if (page && typeof page === 'object') {
     for (const k of ['items', 'data', 'results', 'records']) {
@@ -98,7 +118,7 @@ export function itemsOf<T>(page: unknown): T[] {
       if (Array.isArray(v)) return v as T[];
     }
   }
-  return [];
+  return null;
 }
 
 /** Every page of a list, up to `maxPages`. Stops at the first short page. */
@@ -109,6 +129,11 @@ async function all<T>(path: string, maxPages: number): Promise<Got<T[]>> {
     const r = await call<unknown>(`${path}${sep}page=${page}&per_page=${PER_PAGE}`);
     if ('error' in r) return page === 1 ? r : { data: out };
     const items = itemsOf<T>(r.data);
+    if (!items) {
+      const d = r.data;
+      const shape = d && typeof d === 'object' ? `with ${Object.keys(d).join(', ') || 'nothing'} in it` : d === null ? 'empty' : `as ${typeof d}`;
+      return { error: `Mighty Networks sent the list ${path} in a shape this page does not read (${shape}).` };
+    }
     out.push(...items);
     if (items.length < PER_PAGE) break;
   }
