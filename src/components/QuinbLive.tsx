@@ -11,6 +11,10 @@ import { Conversations, Newcomers, type NewcomerRow, type NoteView, type ThreadV
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', {
   timeZone: 'Europe/Brussels', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
 });
+const whenWithYear = (iso: string) => new Date(iso).toLocaleString('en-GB', {
+  timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+});
+const yearOf = (iso: string) => new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/Brussels', year: 'numeric' });
 const dayOf = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString('en-GB', {
   timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: 'numeric',
 });
@@ -58,7 +62,9 @@ export async function ConversationsTab() {
   const r = await readConversations();
   if ('error' in r) return <Failed error={r.error} />;
   // Dates are written here, once, so the browser draws exactly what the server did.
-  const view = (n: Note): NoteView => ({ ...n, when: when(n.at) });
+  // An older one carries its year, or "Sat 20 Sept" from last year reads as last month.
+  const thisYear = yearOf(new Date().toISOString());
+  const view = (n: Note): NoteView => ({ ...n, when: yearOf(n.at) === thisYear ? when(n.at) : whenWithYear(n.at) });
   const threads: ThreadView[] = r.threads.map((t) => ({ ...t, post: view(t.post), comments: t.comments.map(view) }));
   return <Conversations threads={threads} more={r.more} days={LOOK_BACK_DAYS} max={MAX_THREADS} />;
 }

@@ -2117,7 +2117,7 @@ a.dsettings__item { text-decoration: none; }
 .convo__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--grid-line); }
 .convo__filter { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .convo__filter .chip:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
-.convo__count { margin-left: 6px; font-variant-numeric: tabular-nums; opacity: 0.7; }
+.convo__count { font-variant-numeric: tabular-nums; font-weight: 600; }
 .convo__hint { font-size: 12px; color: var(--muted); }
 .convo__list { list-style: none; margin: 0 auto; padding: 16px 12px 48px; max-width: 820px; display: flex; flex-direction: column; gap: 14px; }
 .convo__empty { max-width: 820px; margin: 0 auto; padding: 28px 12px; color: var(--muted); font-size: 13px; }
@@ -2129,6 +2129,8 @@ a.dsettings__item { text-decoration: none; }
 .convo__head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .convo__who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; font-size: 13px; line-height: 1.35; }
 .convo__who strong, .convo__meta strong { color: var(--ink); font-weight: 600; }
+/* An email in place of a name has no spaces to break at. */
+.convo__who strong, .convo__meta strong, .convo__where { min-width: 0; overflow-wrap: anywhere; }
 .convo__where, .convo__when { color: var(--muted); font-size: 12px; }
 .convo__head .convo__status { margin-left: auto; }
 .convo__title { margin: 12px 0 0; font-size: 16px; font-weight: 650; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
@@ -2142,6 +2144,7 @@ a.dsettings__item { text-decoration: none; }
 .convo__actions { margin-top: 10px; }
 .convo__row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 12px; }
 .convo__n { color: var(--muted); }
+.convo__unread { margin: 8px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--grey-100); color: var(--ink-soft); font-size: 12px; }
 .convo__composer textarea { width: 100%; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--hairline); border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; background: #fff; }
 .convo__composer textarea:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
 
@@ -2150,7 +2153,10 @@ a.dsettings__item { text-decoration: none; }
 .convo__note--reply { margin-left: 40px; }
 .convo__bubble { flex: 1; min-width: 0; padding: 8px 12px 9px; background: var(--surface); border: 1px solid var(--hairline); border-radius: 4px 14px 14px 14px; }
 .convo__note--mine .convo__bubble { background: color-mix(in srgb, var(--accent, var(--brand-violet)) 7%, #fff); border-color: color-mix(in srgb, var(--accent, var(--brand-violet)) 28%, #fff); }
-.convo__note--old .convo__bubble { opacity: 0.85; }
+/* Older than the window: a quieter bubble, the text as dark as the rest. */
+.convo__note--old .convo__bubble { background: var(--grey-50); }
+/* Her tint lowers the grey of the date below 4.5:1, so it is darker there. */
+.convo__note--mine .convo__when { color: var(--ink-soft); }
 .convo__meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 13px; line-height: 1.35; }
 .convo__meta .convo__status { margin-left: auto; }
 .convo__bubble .convo__text { margin-top: 3px; }

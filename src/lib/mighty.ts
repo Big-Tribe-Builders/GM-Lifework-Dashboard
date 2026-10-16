@@ -91,6 +91,8 @@ export type Thread = {
   lastAt: string;
   waiting: number;
   answered: number;
+  /** Its comments could not be read (or only part of them): then nothing in it gets a status. */
+  unread: string | null;
 };
 
 export type Newcomer = { id: number; name: string; email: string | null; joined: string; location: string | null; bio: string | null; link: string | null };
@@ -145,13 +147,16 @@ export function itemsOf<T>(page: unknown): T[] | null {
   return null;
 }
 
+/** A whole list; `cut` when it stopped at `maxPages` while Mighty may have had more. */
+type List<T> = { data: T[]; cut: boolean } | { error: string };
+
 /** Every page of a list, up to `maxPages`. Stops at the first short page. */
-async function all<T>(path: string, maxPages: number): Promise<Got<T[]>> {
+async function all<T>(path: string, maxPages: number): Promise<List<T>> {
   const out: T[] = [];
   const sep = path.includes('?') ? '&' : '?';
   for (let page = 1; page <= maxPages; page++) {
     const r = await call<unknown>(`${path}${sep}page=${page}&per_page=${PER_PAGE}`);
-    if ('error' in r) return page === 1 ? r : { data: out };
+    if ('error' in r) return page === 1 ? r : { data: out, cut: true };
     const items = itemsOf<T>(r.data);
     if (!items) {
       const d = r.data;
@@ -159,9 +164,9 @@ async function all<T>(path: string, maxPages: number): Promise<Got<T[]>> {
       return { error: `Mighty Networks sent the list ${path} in a shape this page does not read (${shape}).` };
     }
     out.push(...items);
-    if (items.length < PER_PAGE) break;
+    if (items.length < PER_PAGE) return { data: out, cut: false };
   }
-  return { data: out };
+  return { data: out, cut: true };
 }
 
 /** Runs `fn` over `xs`, a few at a time, so a long list does not open fifty connections at once. */
@@ -216,17 +221,22 @@ const ms = (s: string | null | undefined) => { const t = s ? Date.parse(s) : NaN
  *     point a reply at the comment above it or at the first one, so the
  *     branch is what counts, not the exact comment replied to.
  * Only what was written since `since` gets a status; older is context.
+ * A post whose comments could not be read whole (`unread`: why) is still
+ * shown, without statuses: from part of a conversation no answer can be
+ * judged.
  */
 export function threadsOf(
   me: number, myName: string, posts: MnPost[], comments: Map<number, MnComment[]>,
   people: Map<number, MnMember>, spaces: Map<number, string>, since: number, subdomain: string | null,
+  unread: Map<number, string> = new Map(),
 ): Thread[] {
   const nameOf = (id: number) => (id === me ? myName : nameOfMember(people.get(id), id));
   const out: Thread[] = [];
   for (const p of posts) {
     const cs = [...(comments.get(p.id) ?? [])].sort((a, b) => ms(a.created_at) - ms(b.created_at));
     const postAt = p.published_at ?? p.created_at;
-    if (ms(postAt) < since && !cs.some((c) => ms(c.created_at) >= since)) continue;
+    const why = unread.get(p.id) ?? null;
+    if (!why && ms(postAt) < since && !cs.some((c) => ms(c.created_at) >= since)) continue;
 
     const byId = new Map(cs.map((c) => [c.id, c]));
     // The top-level comment a reply hangs under, however deep it is.
@@ -243,7 +253,7 @@ export function threadsOf(
       const recent = ms(at) >= since;
       return {
         kind, id, author: mine ? 'You' : nameOf(authorId), authorName: nameOf(authorId), avatar: people.get(authorId)?.avatar || null, mine,
-        text: plainText(html), at, reply, recent, status: mine || !recent ? null : answered() ? 'answered' : 'waiting', link: linkOf(permalink, subdomain),
+        text: plainText(html), at, reply, recent, status: mine || !recent || why ? null : answered() ? 'answered' : 'waiting', link: linkOf(permalink, subdomain),
       };
     };
 
@@ -261,6 +271,7 @@ export function threadsOf(
       lastAt: items.reduce((a, n) => (ms(n.at) > ms(a) ? n.at : a), postAt),
       waiting: items.filter((n) => n.status === 'waiting').length,
       answered: items.filter((n) => n.status === 'answered').length,
+      unread: why,
     });
   }
   return out.sort((a, b) => ms(b.lastAt) - ms(a.lastAt));
@@ -293,17 +304,28 @@ export async function readConversations(): Promise<{ threads: Thread[]; more: nu
     .sort((a, b) => ms(b.last_activity_at ?? b.created_at) - ms(a.last_activity_at ?? a.created_at));
   const live = active.slice(0, MAX_THREADS);
 
-  const lists = await pool(live, 6, (p) => all<MnComment>(`/posts/${p.id}/comments`, 3));
-  const failed = lists.find((x): x is { error: string } => 'error' in x);
-  if (failed) return failed;
-  const comments = new Map(live.map((p, i) => [p.id, (lists[i] as { data: MnComment[] }).data]));
+  // 2,000 comments a post; a post with more says so rather than being judged on part of it.
+  const lists = await pool(live, 6, (p) => all<MnComment>(`/posts/${p.id}/comments`, 20));
+  // One post that cannot be read does not take the others with it; only when none can is it the tab's error.
+  const firstError = lists.find((x): x is { error: string } => 'error' in x);
+  if (firstError && lists.every((x) => 'error' in x)) return firstError;
+  const comments = new Map<number, MnComment[]>();
+  const unread = new Map<number, string>();
+  live.forEach((p, i) => {
+    const l = lists[i];
+    if ('error' in l) unread.set(p.id, `Its comments could not be read: ${l.error}`);
+    else {
+      comments.set(p.id, l.data);
+      if (l.cut) unread.set(p.id, `Only part of its comments could be read here (${l.data.length}).`);
+    }
+  });
 
   // Without the member or space list the conversations still show, with "Member 123" and no space.
   const people = new Map('data' in members ? members.data.map((m) => [m.id, m]) : []);
   const spaceNames = new Map('data' in spaces ? spaces.data.map((s) => [s.id, s.name]) : []);
   const myName = me.data.user?.name?.trim() || nameOfMember(people.get(myId), myId);
 
-  return { threads: threadsOf(myId, myName, live, comments, people, spaceNames, since, sub), more: active.length - live.length };
+  return { threads: threadsOf(myId, myName, live, comments, people, spaceNames, since, sub, unread), more: active.length - live.length };
 }
 
 /** Members who joined in the last LOOK_BACK_DAYS days, newest first. */
