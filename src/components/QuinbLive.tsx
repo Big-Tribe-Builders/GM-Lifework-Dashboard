@@ -13,6 +13,9 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', {
 const whenWithYear = (iso: string) => new Date(iso).toLocaleString('en-GB', {
   timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
 });
+/** The list's dates: the day, and the year only when it is another one. */
+const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short' });
+const dayMonthYear = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: 'numeric' });
 const yearOf = (iso: string) => new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/Brussels', year: 'numeric' });
 
 function Missing({ missing, wrong, what }: { missing: string[]; wrong: string[]; what: string }) {
@@ -61,6 +64,7 @@ export async function ConversationsTab() {
   // An older one carries its year, or "Sat 20 Sept" from last year reads as last month.
   const thisYear = yearOf(new Date().toISOString());
   const view = (n: Note): NoteView => ({ ...n, when: yearOf(n.at) === thisYear ? when(n.at) : whenWithYear(n.at) });
-  const threads: ThreadView[] = r.threads.map((t) => ({ ...t, post: view(t.post), comments: t.comments.map(view) }));
+  const short = (iso: string) => (yearOf(iso) === thisYear ? dayMonth(iso) : dayMonthYear(iso));
+  const threads: ThreadView[] = r.threads.map((t) => ({ ...t, post: view(t.post), comments: t.comments.map(view), lastWhen: short(t.lastAt) }));
   return <Conversations threads={threads} more={r.more} days={LOOK_BACK_DAYS} max={MAX_THREADS} />;
 }

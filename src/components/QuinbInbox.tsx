@@ -1,24 +1,35 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { answerInQuinb } from '@/app/d/quinb/actions';
+import { useScreenFit } from '@/components/useScreenFit';
 import { matches, searchWords, useSearch, useSearchable } from '@/lib/search';
 import type { Note, NoteStatus, Thread } from '@/lib/mighty';
 
 /** A post or comment ready to draw: the server has already written the date. */
 export type NoteView = Note & { when: string };
-export type ThreadView = Omit<Thread, 'post' | 'comments'> & { post: NoteView; comments: NoteView[] };
+export type ThreadView = Omit<Thread, 'post' | 'comments'> & { post: NoteView; comments: NoteView[]; lastWhen: string };
 
 type Show = 'waiting' | 'answered' | 'all';
 
 /** What the search reads in a note: the words people wrote and who wrote them, not the addresses. */
 const searchable = (ns: NoteView[]) => ns.map((n) => ({ author: n.author, name: n.authorName, text: n.text }));
 
+/** The open conversation lives in the address (?post=123), so a reload or a link opens the same one. */
+const POST_PARAM = 'post';
+
+/** A post without a title is listed by its first line. */
+const firstLine = (t: ThreadView) => t.title ?? (t.post.text.split('\n').find((l) => l.trim()) || 'A picture or a file');
+
 /**
- * QuinB Community › Conversations (Giulia, 16 Oct 2026): every post with its
- * comments under it, the way the community shows them, and a filter on
- * whether she has answered. The toolbar search looks through names, titles
- * and texts.
+ * QuinB Community › Conversations (Giulia, 16-17 Oct 2026): the list of
+ * conversations on one half, the open one on the other, with an orange dot
+ * on what waits for her answer and a grey one on what is fine. The toolbar
+ * search looks through names, titles and texts.
+ *
+ * On a narrow screen the halves take turns: the list, then the conversation
+ * with a way back.
  */
 export function Conversations({ threads, more, days, max }: { threads: ThreadView[]; more: number; days: number; max: number }) {
   useSearchable();
@@ -43,24 +54,85 @@ export function Conversations({ threads, more, days, max }: { threads: ThreadVie
     : show === 'answered' ? `Nothing answered in ${scope} yet.`
     : `No posts or comments in the last ${days} days.`;
 
+  // Which one is open: the one she picked, while it is in the list; otherwise
+  // the first. Picked is remembered in the address without asking the
+  // server again (history, not the router: the page would read QuinB anew).
+  const params = useSearchParams();
+  const [picked, setPicked] = useState<number | null>(() => Number(params.get(POST_PARAM)) || null);
+  const chosen = shown.find((t) => t.postId === picked) ?? null;
+  const open = chosen ?? shown[0] ?? null;
+  const select = (id: number | null) => {
+    setPicked(id);
+    const next = new URLSearchParams(window.location.search);
+    if (id) next.set(POST_PARAM, String(id)); else next.delete(POST_PARAM);
+    const qs = next.toString();
+    window.history.replaceState(window.history.state, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+  };
+
+  const split = useRef<HTMLDivElement>(null);
+  useScreenFit(split);
+  const detail = useRef<HTMLElement>(null);
+  // A newly opened conversation starts at its top.
+  useEffect(() => { detail.current?.scrollTo({ top: 0 }); }, [open?.postId]);
+
+  // Up and down move through the list and open what they land on, as in a mail program.
+  const rows = useRef<(HTMLButtonElement | null)[]>([]);
+  const onRowKey = (e: KeyboardEvent, i: number) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const j = Math.min(shown.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)));
+    rows.current[j]?.focus();
+    select(shown[j].postId);
+  };
+
   return (
-    <div className="convo">
-      <div className="convo__bar">
-        <div className="convo__filter" role="group" aria-label="Show">
-          {chips.map(([k, label, n]) => (
-            <button key={k} type="button" className={`chip${show === k ? ' chip--active' : ''}`} aria-pressed={show === k} onClick={() => pick(k)}>
-              {label}<span className="convo__count">{n}</span>
-            </button>
-          ))}
+    <div className={`convo${chosen ? ' convo--open' : ''}`} ref={split}>
+      <section className="convo__side" aria-label="Conversations">
+        <div className="convo__bar">
+          <div className="convo__filter" role="group" aria-label="Show">
+            {chips.map(([k, label, n]) => (
+              <button key={k} type="button" className={`chip${show === k ? ' chip--active' : ''}`} aria-pressed={show === k} onClick={() => pick(k)}>
+                {label}<span className="convo__count">{n}</span>
+              </button>
+            ))}
+          </div>
         </div>
-        <span className="convo__hint">Posts and comments of the last {days} days, newest first.</span>
-      </div>
-      {more > 0 ? <p className="tabnote">The {max} posts with the latest activity are shown; {more} more had activity in these {days} days. Open QuinB for those.</p> : null}
-      {shown.length ? (
-        <ol className="convo__list">
-          {shown.map((t) => <ThreadCard key={t.postId} t={t} words={words} onAnswered={() => setKept((k) => new Set(k).add(t.postId))} />)}
-        </ol>
-      ) : <p className="convo__empty">{empty}</p>}
+        {more > 0 ? <p className="tabnote">The {max} posts with the latest activity are shown; {more} more had activity in these {days} days. Open QuinB for those.</p> : null}
+        {shown.length ? (
+          <ul className="convo__rows">
+            {shown.map((t, i) => {
+              const on = t.postId === open?.postId;
+              // Only what helps choose: where, how much was said, and in words what the dot says.
+              const said = t.comments.length === 0 ? null : t.comments.length === 1 ? '1 comment' : `${t.comments.length} comments`;
+              const meta = [t.space, said, t.unread ? 'comments not read' : t.waiting ? `${t.waiting} waiting for you` : null].filter(Boolean).join(' · ');
+              return (
+                <li key={t.postId}>
+                  <button ref={(el) => { rows.current[i] = el; }} type="button" className={`convo__item${on ? ' convo__item--on' : ''}`}
+                    aria-current={on ? 'true' : undefined} onClick={() => select(t.postId)} onKeyDown={(e) => onRowKey(e, i)}>
+                    <span className={`convo__dot${t.waiting ? ' convo__dot--waiting' : ''}`} aria-hidden="true" />
+                    <span className="convo__rowmain">
+                      <span className="convo__rowtop">
+                        <span className="convo__rowwho">{t.post.author}</span>
+                        <time className="convo__rowwhen" dateTime={t.lastAt}>{t.lastWhen}</time>
+                      </span>
+                      <span className={`convo__rowtitle${t.waiting ? ' convo__rowtitle--waiting' : ''}`}>{firstLine(t)}</span>
+                      <span className="convo__rowmeta">{meta}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="convo__empty">{empty}</p>}
+      </section>
+      <section className="convo__detail" ref={detail} aria-label={open ? `Conversation: ${firstLine(open)}` : 'Conversation'}>
+        {open ? (
+          <>
+            <button type="button" className="convo__back" onClick={() => select(null)}>← All conversations</button>
+            <ThreadCard key={open.postId} t={open} words={words} onAnswered={() => setKept((k) => new Set(k).add(open.postId))} />
+          </>
+        ) : null}
+      </section>
     </div>
   );
 }
@@ -85,8 +157,8 @@ function ThreadCard({ t, words, onAnswered }: { t: ThreadView; words: string[]; 
   const label = t.title ? `${t.post.author}: ${t.title}` : `${t.post.author}, ${t.post.when}`;
 
   return (
-    <li className={`convo__thread${t.waiting ? ' convo__thread--waiting' : ''}`}>
-      <article aria-label={label}>
+    <article className={`convo__thread${t.waiting ? ' convo__thread--waiting' : ''}`} aria-label={label}>
+      <div>
         <div className="convo__post">
           <header className="convo__head">
             <Avatar n={t.post} />
@@ -116,8 +188,8 @@ function ThreadCard({ t, words, onAnswered }: { t: ThreadView; words: string[]; 
             ))}
           </div>
         ) : null}
-      </article>
-    </li>
+      </div>
+    </article>
   );
 }
 

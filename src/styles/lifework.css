@@ -2123,17 +2123,37 @@ a.dsettings__item { text-decoration: none; }
 /* QuinB Community: a line of explanation above a tab's content. */
 .tabnote { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--muted); background: var(--surface); border-bottom: 1px solid var(--grid-line); }
 
-/* QuinB Community › Conversations: each post as a card with its comments
-   under it as speech bubbles, the way the community shows them. A reading
-   column, not a table: lines of text read best at about 80 characters. */
-.convo { background: var(--grid-canvas); min-height: 100%; }
+/* QuinB Community › Conversations: the list on one half, the open
+   conversation on the other (Giulia, 17 Oct 2026). The two halves fill the
+   screen under the toolbar and scroll on their own; the open one is a post
+   card with its comments under it as speech bubbles. */
+.convo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); height: var(--screen-fit, calc(100dvh - var(--chrome-h))); min-height: 360px; background: var(--grid-canvas); }
+.convo__side { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--grid-line); }
+.convo__rows { flex: 1; min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.convo__item { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--grid-line); background: none; font: inherit; text-align: left; color: var(--ink); cursor: pointer; }
+.convo__item:hover { background: var(--grey-50); }
+.convo__item--on, .convo__item--on:hover { background: var(--grey-100); box-shadow: inset 3px 0 0 var(--accent, var(--brand-violet)); }
+.convo__item:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: -2px; }
+/* The dot: orange, something waits for her answer; grey, all fine. The words under the title say the same. */
+.convo__dot { flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: var(--ghost); }
+.convo__dot--waiting { background: var(--brand-orange); }
+.convo__rowmain { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.convo__rowtop { display: flex; align-items: baseline; gap: 8px; }
+.convo__rowwho { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
+.convo__rowwhen { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.convo__rowtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ink-soft); }
+.convo__rowtitle--waiting { font-weight: 600; color: var(--ink); }
+.convo__rowmeta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.convo__detail { min-width: 0; min-height: 0; padding: 16px; overflow-y: auto; }
+.convo__detail .convo__thread { max-width: 780px; margin: 0 auto; }
+/* Only on a narrow screen, where the conversation takes the whole width. */
+.convo__back { display: none; margin: 0 0 10px; padding: 4px 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--accent-deep, var(--ink-soft)); cursor: pointer; }
+.convo__back:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; border-radius: 4px; }
 .convo__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--grid-line); }
 .convo__filter { display: inline-flex; flex-wrap: wrap; gap: 8px; }
 .convo__filter .chip:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
 .convo__count { font-variant-numeric: tabular-nums; font-weight: 600; }
-.convo__hint { font-size: 12px; color: var(--muted); }
-.convo__list { list-style: none; margin: 0 auto; padding: 16px 12px 48px; max-width: 820px; display: flex; flex-direction: column; gap: 14px; }
-.convo__empty { max-width: 820px; margin: 0 auto; padding: 28px 12px; color: var(--muted); font-size: 13px; }
+.convo__empty { margin: 0; padding: 28px 16px; color: var(--muted); font-size: 13px; }
 
 .convo__thread { background: var(--surface); border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
 /* Something in it waits for her: a mark on the left edge, as well as the label. */
@@ -2184,8 +2204,15 @@ a.dsettings__item { text-decoration: none; }
 .convo__status--waiting::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--brand-orange); }
 .convo__status--answered { background: #e8f7ee; color: #17663f; }
 
+/* A narrow screen: one half at a time, the list first. */
+@media (max-width: 900px) {
+  .convo { grid-template-columns: minmax(0, 1fr); }
+  .convo:not(.convo--open) .convo__detail { display: none; }
+  .convo--open .convo__side { display: none; }
+  .convo__back { display: inline-flex; }
+}
 @media (max-width: 640px) {
-  .convo__list { padding: 10px 8px 40px; }
+  .convo__detail { padding: 10px 8px; }
   .convo__post { padding: 12px 12px 10px 14px; }
   .convo__comments { padding: 10px 10px 12px 12px; }
   .convo__note--reply { margin-left: 18px; }
