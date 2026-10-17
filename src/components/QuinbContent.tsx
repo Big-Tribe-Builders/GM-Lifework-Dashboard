@@ -1,13 +1,14 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import type { ColumnSetting } from '@/lib/grid';
 import {
-  POST_STATUS, POST_TONE, POST_STATUSES, BANNER_BUCKET, PLAN_START, AUDIENCES, POST_KINDS,
+  POST_STATUS, POST_TONE, POST_STATUSES, BANNER_BUCKET, AUDIENCES, POST_KINDS,
   type PostStatus, type QuinbPost, type QuinbPostType, type QuinbYear, type QuinbMonth, type QuinbWeek,
 } from '@/lib/quinb';
-import { WEEKDAYS, weeksOfMonth, daysOfWeek, dayLabel, monthLabel, monthsBetween, weekday, addDays, todayIso, mondayOf } from '@/lib/calendar';
+import { WEEKDAYS, MONTHS, weeksOfMonth, daysOfWeek, dayLabel, monthLabel, weekday, addDays, todayIso } from '@/lib/calendar';
 import { addPost, updatePost, removePost, savePlan, addPostType, updatePostType, removePostType } from '@/app/d/quinb/actions';
 import { saveGridColumn } from '@/app/d/actions';
 import { getSupabase } from '@/lib/supabase';
@@ -33,18 +34,56 @@ const isApproved = (s: PostStatus) => s === 'approved' || s === 'scheduled' || s
 
 // ------------------------------------------------------------------ plan
 
+/** Covers rotate through the four brand colours: decoration, never meaning (docs/DESIGN.md). */
+const TONES = ['violet', 'red', 'green', 'orange'] as const;
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The open year and month live in the address (?year=2027&month=2027-03), so
+ * a reload or a link opens the same place. Written with history, not the
+ * router: a choice here needs nothing new from the server.
+ */
+function remember(params: Record<string, string>) {
+  const next = new URLSearchParams(window.location.search);
+  for (const [k, v] of Object.entries(params)) next.set(k, v);
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}?${next.toString()}`);
+}
+
+/**
+ * QuinB Community › Content strategy (Giulia, 17 Oct 2026): the years as a
+ * gallery of cards; a year opens its months as a second gallery under it;
+ * a month opens its weeks as a list, each week folding open to its theme,
+ * its plan and a post for every day.
+ */
 export function Plan({ years, months, weeks, types, posts, postsHref }: {
   years: QuinbYear[]; months: QuinbMonth[]; weeks: QuinbWeek[]; types: QuinbPostType[]; posts: QuinbPost[];
   /** Where a post opens: the Posts tab with ?peek=. */
   postsHref: string;
 }) {
   const today = todayIso();
-  const firstYear = Number(PLAN_START.slice(0, 4));
-  const lastYear = Math.max(firstYear + 1, Number(today.slice(0, 4)) + 1);
-  const yearList = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYear + i);
-  const [year, setYear] = useState(() => Math.min(Math.max(Number(today.slice(0, 4)), firstYear), lastYear));
+  const thisYear = Number(today.slice(0, 4));
+  // The years with a plan, and this year and the next, which always have a card.
+  const yearList = useMemo(() => [...new Set([
+    ...years.map((y) => y.year), ...months.map((m) => Number(m.month.slice(0, 4))), thisYear, thisYear + 1,
+  ])].sort((a, b) => a - b), [years, months, thisYear]);
 
-  const yearRow = years.find((y) => y.year === year);
+  const params = useSearchParams();
+  const [year, setYear] = useState(() => {
+    const y = Number(params.get('year'));
+    return yearList.includes(y) ? y : thisYear;
+  });
+  const monthsOfYear = MONTH_SHORT.map((_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+  const [month, setMonth] = useState(() => {
+    const m = params.get('month') ?? '';
+    return m.startsWith(`${year}-`) && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : year === thisYear ? today.slice(0, 7) : `${year}-01`;
+  });
+  const pickYear = (y: number) => {
+    const m = y === thisYear ? today.slice(0, 7) : `${y}-01`;
+    setYear(y); setMonth(m); remember({ year: String(y), month: m });
+  };
+  const pickMonth = (m: string) => { setMonth(m); remember({ year: String(year), month: m }); };
+
+  const yearRow = (y: number) => years.find((r) => r.year === y);
   const monthRow = useMemo(() => new Map(months.map((m) => [m.month, m])), [months]);
   const weekRow = useMemo(() => new Map(weeks.map((w) => [w.monday, w])), [weeks]);
   const typeByDay = useMemo(() => new Map(types.map((t) => [t.weekday, t])), [types]);
@@ -53,104 +92,195 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
     for (const p of posts) if (p.plannedFor) m.set(p.plannedFor, [...(m.get(p.plannedFor) ?? []), p]);
     return m;
   }, [posts]);
-
-  const from = `${year}-01` < PLAN_START ? PLAN_START : `${year}-01`;
-  const monthList = monthsBetween(from, `${year}-12`);
-  // The weeks drawn under a month: those whose Monday is in it, plus, for
-  // the month the plan starts, the week holding its first day.
-  const monthWeeks = (month: string) => {
-    const ws = weeksOfMonth(month);
-    const lead = mondayOf(`${month}-01`);
-    return month === PLAN_START && ws[0] !== lead ? [lead, ...ws] : ws;
-  };
-  // Counts come from the days that are drawn, so a number never points at a post that is not shown.
+  const planned = (y: number) => months.filter((m) => m.month.startsWith(`${y}-`) && m.theme).length;
   const postsIn = (mondays: string[]) => mondays.flatMap(daysOfWeek).flatMap((d) => postsByDay.get(d) ?? []);
-  const thisMonth = today.slice(0, 7);
-  const [open, setOpen] = useState<Record<string, boolean>>(() => ({ [monthList.includes(thisMonth) ? thisMonth : monthList[0]]: true }));
-  const toggle = (k: string) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
-  const yearPosts = postsIn(monthList.flatMap(monthWeeks));
+  const y = yearRow(year);
+  const m = monthRow.get(month);
+  const mondays = weeksOfMonth(month);
+  const mPosts = postsIn(mondays);
 
   return (
     <div className="plan">
-      <div className="board__years">
-        {yearList.map((y) => (
-          <button key={y} type="button" className={`chip${y === year ? ' chip--active' : ''}`} onClick={() => setYear(y)}>{y}</button>
-        ))}
-        <span className="muted plan__count">{yearPosts.length} post{yearPosts.length === 1 ? '' : 's'} planned · {yearPosts.filter((p) => isApproved(p.status)).length} approved</span>
-      </div>
+      <Gallery label="Years" active={String(year)}>
+        {yearList.map((yy, i) => {
+          const row = yearRow(yy);
+          const n = planned(yy);
+          return (
+            <CoverCard key={yy} id={String(yy)} size="year" tone={TONES[i % 4]} cover={row?.coverUrl ?? null} big={String(yy)}
+              title={String(yy)} subtitle={row?.theme ?? null} meta={n ? `${n} of 12 months planned` : 'No months planned yet'}
+              active={yy === year} onPick={() => pickYear(yy)} />
+          );
+        })}
+      </Gallery>
 
-      <section className="plan__year">
-        <div className="plan__yearhead">{year}{year === firstYear ? <span className="muted"> · from {monthLabel(PLAN_START)}</span> : null}</div>
-        <div className="plan__fields" key={`y-${year}`}>
-          <Field wide label="Theme of the year" value={yearRow?.theme ?? null} onSave={(v) => savePlan('year', String(year), 'theme', v)} />
-          <label className="pfield">
-            <span className="pfield__label">Audience</span>
-            <Sel value={yearRow?.audience ?? ''} blank="—" options={AUDIENCES.map((a) => ({ value: a, label: a }))} label="Audience"
-              onChange={(v) => savePlan('year', String(year), 'audience', v)} />
-          </label>
-          <Field label="Focus" value={yearRow?.focus ?? null} onSave={(v) => savePlan('year', String(year), 'focus', v)} />
-          <Field label="Goal" value={yearRow?.goal ?? null} onSave={(v) => savePlan('year', String(year), 'goal', v)} />
-          <Field wide multiline rows={2} label="Notes" value={yearRow?.notes ?? null} onSave={(v) => savePlan('year', String(year), 'notes', v)} />
-        </div>
+      <section className="plan__level" aria-label={`${year}`}>
+        <LevelHead title={String(year)} theme={y?.theme ?? null} empty="No theme for this year yet" editLabel="Edit year" startOpen={!y?.theme} key={`yh-${year}`}>
+          <div className="plan__fields">
+            <Field wide label="Theme of the year" value={y?.theme ?? null} onSave={(v) => savePlan('year', String(year), 'theme', v)} />
+            <label className="pfield">
+              <span className="pfield__label">Audience</span>
+              <Sel value={y?.audience ?? ''} blank="—" options={AUDIENCES.map((a) => ({ value: a, label: a }))} label="Audience"
+                onChange={(v) => savePlan('year', String(year), 'audience', v)} />
+            </label>
+            <Field label="Focus" value={y?.focus ?? null} onSave={(v) => savePlan('year', String(year), 'focus', v)} />
+            <Field label="Goal" value={y?.goal ?? null} onSave={(v) => savePlan('year', String(year), 'goal', v)} />
+            <Field wide multiline rows={2} label="Notes" value={y?.notes ?? null} onSave={(v) => savePlan('year', String(year), 'notes', v)} />
+          </div>
+          <Banner noun="cover" url={y?.coverUrl ?? null} alt={`Cover of ${year}`} prefix={`cover-${year}`}
+            note={y?.coverUrl ? undefined : 'No picture: the card shows a designed cover.'}
+            onSave={(url) => savePlan('year', String(year), 'coverUrl', url)} />
+        </LevelHead>
+
+        <Gallery label={`Months of ${year}`} active={month}>
+          {monthsOfYear.map((mm, i) => {
+            const row = monthRow.get(mm);
+            const n = postsIn(weeksOfMonth(mm)).length;
+            return (
+              <CoverCard key={mm} id={mm} size="month" tone={TONES[i % 4]} cover={row?.coverUrl ?? null} big={MONTH_SHORT[i]}
+                title={MONTHS[i]} subtitle={row?.theme ?? null} meta={n ? `${n} post${n === 1 ? '' : 's'}` : null}
+                active={mm === month} onPick={() => pickMonth(mm)} />
+            );
+          })}
+        </Gallery>
+
+        <section className="plan__level plan__level--month" aria-label={monthLabel(month)}>
+          <LevelHead title={monthLabel(month)} theme={m?.theme ?? null} empty="No theme for this month yet" editLabel="Edit month"
+            startOpen={!m?.theme} key={`mh-${month}`}
+            extra={mPosts.length ? `${mPosts.length} post${mPosts.length === 1 ? '' : 's'} · ${mPosts.filter((p) => isApproved(p.status)).length} approved` : null}>
+            <div className="plan__fields">
+              <Field wide label="Monthly theme" value={m?.theme ?? null} onSave={(v) => savePlan('month', month, 'theme', v)} />
+              <Field label="Focus" value={m?.focus ?? null} onSave={(v) => savePlan('month', month, 'focus', v)} />
+              <Field label="Goal" value={m?.goal ?? null} onSave={(v) => savePlan('month', month, 'goal', v)} />
+              <Field wide multiline rows={3} label="Note" placeholder="What we do this month, in your words." value={m?.note ?? null} onSave={(v) => savePlan('month', month, 'note', v)} />
+              <Field label="Link to NotebookLM" placeholder="https://notebooklm.google.com/…" value={m?.notebooklmUrl ?? null} onSave={(v) => savePlan('month', month, 'notebooklmUrl', v)} />
+            </div>
+            <Banner noun="cover" url={m?.coverUrl ?? null} alt={`Cover of ${monthLabel(month)}`} prefix={`cover-${month}`}
+              note={m?.coverUrl ? undefined : 'No picture: the card shows a designed cover.'}
+              onSave={(url) => savePlan('month', month, 'coverUrl', url)} />
+          </LevelHead>
+          <Weeks key={month} mondays={mondays} weekRow={weekRow} typeByDay={typeByDay} postsByDay={postsByDay} postsHref={postsHref} today={today} />
+        </section>
       </section>
+    </div>
+  );
+}
 
-      {monthList.map((month) => {
-        const m = monthRow.get(month);
-        const mPosts = postsIn(monthWeeks(month));
-        const isOpen = !!open[month];
+/** A row of cards that slides sideways, with buttons to slide and the chosen card kept in view. */
+function Gallery({ label, active, children }: { label: string; active: string; children: React.ReactNode }) {
+  const track = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: true });
+  const measure = () => {
+    const el = track.current;
+    if (!el) return;
+    setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+  };
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    el.querySelector<HTMLElement>(`[data-card="${CSS.escape(active)}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [active]);
+  const slide = (dir: number) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: 'smooth' });
+  return (
+    <div className="gallery" role="group" aria-label={label}>
+      <button type="button" className="gallery__nav" aria-label={`${label}: back`} disabled={edge.start} onClick={() => slide(-1)}>‹</button>
+      <div className="gallery__track" ref={track} onScroll={measure}>{children}</div>
+      <button type="button" className="gallery__nav" aria-label={`${label}: further`} disabled={edge.end} onClick={() => slide(1)}>›</button>
+    </div>
+  );
+}
+
+/** A card in a gallery: her picture, or a designed cover; under it the name and the theme. */
+function CoverCard({ id, size, tone, cover, big, title, subtitle, meta, active, onPick }: {
+  id: string; size: 'year' | 'month'; tone: string; cover: string | null; big: string;
+  title: string; subtitle: string | null; meta: string | null; active: boolean; onPick: () => void;
+}) {
+  return (
+    <button type="button" data-card={id} className={`ccard ccard--${size}${active ? ' ccard--on' : ''}`} aria-pressed={active} onClick={onPick}>
+      <span className={`ccard__cover ccard__cover--${tone}`}>
+        {cover
+          // eslint-disable-next-line @next/next/no-img-element -- her own picture, drawn as it is
+          ? <img src={cover} alt="" loading="lazy" />
+          : <span className="ccard__big" aria-hidden="true">{big}</span>}
+      </span>
+      <span className="ccard__body">
+        <span className="ccard__title">{title}</span>
+        <span className={`ccard__sub${subtitle ? '' : ' ccard__sub--none'}`}>{subtitle ?? 'No theme yet'}</span>
+        {meta ? <span className="ccard__meta">{meta}</span> : null}
+      </span>
+    </button>
+  );
+}
+
+/** The chosen year or month: its name and theme, and its fields behind "Edit". */
+function LevelHead({ title, theme, empty, editLabel, startOpen, extra, children }: {
+  title: string; theme: string | null; empty: string; editLabel: string; startOpen: boolean; extra?: string | null; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  return (
+    <div className="plan__levelhead">
+      <div className="plan__levelrow">
+        <h2 className="plan__leveltitle">{title}</h2>
+        <span className={`plan__leveltheme${theme ? '' : ' muted'}`}>{theme ?? empty}</span>
+        {extra ? <span className="muted plan__count">{extra}</span> : null}
+        <button type="button" className="btn btn--ghost btn--tiny plan__edit" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Done' : editLabel}</button>
+      </div>
+      {open ? <div className="plan__levelbody">{children}</div> : null}
+    </div>
+  );
+}
+
+/** A month's weeks as a list; each folds open to its theme, its plan and its days. */
+function Weeks({ mondays, weekRow, typeByDay, postsByDay, postsHref, today }: {
+  mondays: string[]; weekRow: Map<string, QuinbWeek>; typeByDay: Map<number, QuinbPostType>;
+  postsByDay: Map<string, QuinbPost[]>; postsHref: string; today: string;
+}) {
+  // The week holding today starts open; otherwise the first.
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    const now = mondays.find((d) => d <= today && today <= addDays(d, 6));
+    return mondays.length ? { [now ?? mondays[0]]: true } : {};
+  });
+  const all = mondays.every((d) => open[d]);
+  return (
+    <div className="plan__weeks">
+      <div className="plan__weekbar">
+        <span className="plan__weekcount">{mondays.length} weeks</span>
+        <button type="button" className="btn btn--ghost btn--tiny" onClick={() => setOpen(all ? {} : Object.fromEntries(mondays.map((d) => [d, true])))}>
+          {all ? 'Close all' : 'Open all'}
+        </button>
+      </div>
+      {mondays.map((monday, wi) => {
+        const w = weekRow.get(monday);
+        const isOpen = !!open[monday];
+        const wPosts = daysOfWeek(monday).flatMap((d) => postsByDay.get(d) ?? []);
         return (
-          <section key={month} className={`plan__month${isOpen ? ' is-open' : ''}`}>
-            <div className="plan__head">
-              <button type="button" className="plan__toggle" aria-expanded={isOpen} onClick={() => toggle(month)}>
-                <span className="plan__caret">{isOpen ? '▾' : '▸'}</span>{monthLabel(month)}
+          <div key={monday} className={`plan__week${isOpen ? ' is-open' : ''}`}>
+            <div className="plan__head plan__head--week">
+              <button type="button" className="plan__toggle" aria-expanded={isOpen} onClick={() => setOpen((o) => ({ ...o, [monday]: !o[monday] }))}>
+                <span className="plan__caret">{isOpen ? '▾' : '▸'}</span>Week {wi + 1}
+                <span className="muted plan__dates">{dayLabel(monday)} – {dayLabel(addDays(monday, 6))}</span>
               </button>
-              <span className="plan__theme">{m?.theme ? m.theme : <span className="muted">no monthly theme yet</span>}</span>
-              <span className="muted plan__count">{mPosts.length} post{mPosts.length === 1 ? '' : 's'} · {mPosts.filter((p) => isApproved(p.status)).length} approved</span>
+              <span className="plan__theme">{w?.theme ? w.theme : <span className="muted">no week theme yet</span>}</span>
+              <span className="muted plan__count">{wPosts.length}/7</span>
             </div>
             {isOpen ? (
-              <div className="plan__body">
-                <div className="plan__fields" key={`m-${month}`}>
-                  <Field wide label="Monthly theme" value={m?.theme ?? null} onSave={(v) => savePlan('month', month, 'theme', v)} />
-                  <Field label="Focus" value={m?.focus ?? null} onSave={(v) => savePlan('month', month, 'focus', v)} />
-                  <Field label="Goal" value={m?.goal ?? null} onSave={(v) => savePlan('month', month, 'goal', v)} />
-                  <Field wide multiline rows={3} label="Note" placeholder="What we do this month, in your words." value={m?.note ?? null} onSave={(v) => savePlan('month', month, 'note', v)} />
-                  <Field label="Link to NotebookLM" placeholder="https://notebooklm.google.com/…" value={m?.notebooklmUrl ?? null} onSave={(v) => savePlan('month', month, 'notebooklmUrl', v)} />
+              <div className="plan__body plan__body--week">
+                <div className="plan__fields" key={monday}>
+                  <Field wide label="Week theme" value={w?.theme ?? null} onSave={(v) => savePlan('week', monday, 'theme', v)} />
+                  <Field wide multiline rows={3} label="What we do this week" placeholder="Explain the week: what members do, learn, share." value={w?.plan ?? null} onSave={(v) => savePlan('week', monday, 'plan', v)} />
                 </div>
-                {monthWeeks(month).map((monday, wi) => {
-                  const w = weekRow.get(monday);
-                  const wKey = `w-${monday}`;
-                  const wOpen = !!open[wKey];
-                  const wPosts = daysOfWeek(monday).flatMap((d) => postsByDay.get(d) ?? []);
-                  return (
-                    <div key={monday} className={`plan__week${wOpen ? ' is-open' : ''}`}>
-                      <div className="plan__head plan__head--week">
-                        <button type="button" className="plan__toggle" aria-expanded={wOpen} onClick={() => toggle(wKey)}>
-                          <span className="plan__caret">{wOpen ? '▾' : '▸'}</span>Week {wi + 1}
-                          <span className="muted plan__dates">{dayLabel(monday)} – {dayLabel(addDays(monday, 6))}</span>
-                        </button>
-                        <span className="plan__theme">{w?.theme ? w.theme : <span className="muted">no week theme yet</span>}</span>
-                        <span className="muted plan__count">{wPosts.length}/7</span>
-                      </div>
-                      {wOpen ? (
-                        <div className="plan__body plan__body--week">
-                          <div className="plan__fields" key={wKey}>
-                            <Field wide label="Week theme" value={w?.theme ?? null} onSave={(v) => savePlan('week', monday, 'theme', v)} />
-                            <Field wide multiline rows={3} label="What we do this week" placeholder="Explain the week: what members do, learn, share." value={w?.plan ?? null} onSave={(v) => savePlan('week', monday, 'plan', v)} />
-                          </div>
-                          <div className="plan__days">
-                            {daysOfWeek(monday).map((day) => (
-                              <DayRow key={day} day={day} type={typeByDay.get(weekday(day))} posts={postsByDay.get(day) ?? []} postsHref={postsHref} />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                <div className="plan__days">
+                  {daysOfWeek(monday).map((day) => (
+                    <DayRow key={day} day={day} type={typeByDay.get(weekday(day))} posts={postsByDay.get(day) ?? []} postsHref={postsHref} />
+                  ))}
+                </div>
               </div>
             ) : null}
-          </section>
+          </div>
         );
       })}
     </div>
@@ -354,7 +484,7 @@ function PostPanel({ post, type, closeHref }: { post: QuinbPost; type: QuinbPost
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-function Banner({ url, alt, prefix, note, onSave }: { url: string | null; alt: string; prefix: string; note?: string; onSave: (url: string) => Promise<Result> }) {
+function Banner({ url, alt, prefix, note, onSave, noun = 'banner' }: { url: string | null; alt: string; prefix: string; note?: string; onSave: (url: string) => Promise<Result>; noun?: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -378,13 +508,13 @@ function Banner({ url, alt, prefix, note, onSave }: { url: string | null; alt: s
 
   return (
     <div className="banner">
-      {url ? <img className="banner__img" src={url} alt={alt} /> : <div className="banner__empty">No banner yet</div>}
+      {url ? <img className="banner__img" src={url} alt={alt} /> : <div className="banner__empty">No {noun} yet</div>}
       {note ? <p className="muted banner__note">{note}</p> : null}
       <div className="banner__actions">
         <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); }} />
         <button type="button" className="btn btn--ghost btn--tiny" disabled={busy} onClick={() => input.current?.click()}>
-          {busy ? 'Uploading…' : url && !note ? 'Replace banner' : 'Upload banner'}
+          {busy ? 'Uploading…' : url && !note ? `Replace ${noun}` : `Upload ${noun}`}
         </button>
         {url && !note ? (
           <>

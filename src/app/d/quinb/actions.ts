@@ -130,16 +130,17 @@ export async function savePlan(level: 'year' | 'month' | 'week', key: string, fi
   if (level === 'year') {
     const year = Number(key);
     if (!Number.isInteger(year) || year < 2000 || year > 2100) return { error: 'Not a year.' };
-    const cols: Record<string, string> = { theme: 'theme', audience: 'audience', focus: 'focus', goal: 'goal', notes: 'notes' };
+    const cols: Record<string, string> = { theme: 'theme', audience: 'audience', focus: 'focus', goal: 'goal', notes: 'notes', coverUrl: 'cover_url' };
     if (!(field in cols)) return { error: `Unknown field: ${field}` };
+    if (field === 'coverUrl' && !httpsOrEmpty(v ?? '')) return { error: 'A picture link starts with https://' };
     if (field === 'audience' && v && !(AUDIENCES as readonly string[]).includes(v)) return { error: 'External or Community.' };
     const { error } = await db.from('quinb_years').upsert({ year, [cols[field]]: v, updated_at: at }, { onConflict: 'year' });
     if (error) return { error: error.message };
   } else if (level === 'month') {
     if (!MONTH_RE.test(key)) return { error: 'Not a month.' };
-    const cols: Record<string, string> = { theme: 'theme', focus: 'focus', goal: 'goal', note: 'note', notebooklmUrl: 'notebooklm_url' };
+    const cols: Record<string, string> = { theme: 'theme', focus: 'focus', goal: 'goal', note: 'note', notebooklmUrl: 'notebooklm_url', coverUrl: 'cover_url' };
     if (!(field in cols)) return { error: `Unknown field: ${field}` };
-    if (field === 'notebooklmUrl' && !httpsOrEmpty(v ?? '')) return { error: 'A link starts with https://' };
+    if ((field === 'notebooklmUrl' || field === 'coverUrl') && !httpsOrEmpty(v ?? '')) return { error: 'A link starts with https://' };
     const { error } = await db.from('quinb_months').upsert({ month: key, [cols[field]]: v, updated_at: at }, { onConflict: 'month' });
     if (error) return { error: error.message };
   } else {

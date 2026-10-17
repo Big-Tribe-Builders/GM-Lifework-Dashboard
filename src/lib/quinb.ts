@@ -9,9 +9,6 @@
 
 export const BANNER_BUCKET = 'quinb-banners';
 
-/** The plan starts here: the new series begins in October 2026. */
-export const PLAN_START = '2026-10';
-
 /** Progress, as in her Notion, plus Approved and Posted. */
 export type PostStatus =
   | 'idea' | 'planned' | 'next_up' | 'in_progress' | 'review'
@@ -29,8 +26,9 @@ export const POST_STATUSES = Object.keys(POST_STATUS) as PostStatus[];
 export const AUDIENCES = ['External', 'Community'] as const;
 export const POST_KINDS = ['Article', 'Question', 'Quick Post'] as const;
 
-export type QuinbYear = { year: number; theme: string | null; audience: string | null; focus: string | null; goal: string | null; notes: string | null; updatedAt: string };
-export type QuinbMonth = { month: string; theme: string | null; focus: string | null; goal: string | null; note: string | null; notebooklmUrl: string | null; updatedAt: string };
+/** coverUrl: her own picture for the card in the gallery; without one the card has a designed cover. */
+export type QuinbYear = { year: number; theme: string | null; audience: string | null; focus: string | null; goal: string | null; notes: string | null; coverUrl?: string | null; updatedAt: string };
+export type QuinbMonth = { month: string; theme: string | null; focus: string | null; goal: string | null; note: string | null; notebooklmUrl: string | null; coverUrl?: string | null; updatedAt: string };
 export type QuinbWeek = { monday: string; theme: string | null; plan: string | null; updatedAt: string };
 
 export type QuinbPostType = {

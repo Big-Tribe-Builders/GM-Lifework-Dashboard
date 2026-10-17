@@ -24,13 +24,16 @@ export const mondayOf = (s: string) => addDays(s, 1 - weekday(s));
 /** 'YYYY-MM' of a date. */
 export const monthOf = (s: string) => s.slice(0, 7);
 
-/** The Mondays whose week belongs to this month ('2027-01'). */
+/**
+ * The Mondays of the weeks that belong to this month ('2027-01'). A week
+ * belongs to the month that holds its Thursday, so most of its days, as ISO
+ * weeks do: 30 Nov – 6 Dec 2026 is a December week.
+ */
 export function weeksOfMonth(month: string): string[] {
-  const first = `${month}-01`;
-  let m = mondayOf(first);
-  if (monthOf(m) !== month) m = addDays(m, 7);
+  let m = mondayOf(`${month}-01`);
+  if (monthOf(addDays(m, 3)) !== month) m = addDays(m, 7);
   const out: string[] = [];
-  while (monthOf(m) === month) { out.push(m); m = addDays(m, 7); }
+  while (monthOf(addDays(m, 3)) === month) { out.push(m); m = addDays(m, 7); }
   return out;
 }
 
