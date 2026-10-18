@@ -16,6 +16,7 @@ import { Grid, type Column } from '@/components/Grid';
 import { EditableCell } from '@/components/EditableCell';
 import { AddRow, Remove, Sel, DateCell, OpenArrow } from '@/components/rowkit';
 import { Field, CloseLink, usePanelKeys } from '@/components/panel';
+import { useScreenFit } from '@/components/useScreenFit';
 import { shortDate } from '@/lib/upwork';
 
 /**
@@ -37,23 +38,27 @@ const isApproved = (s: PostStatus) => s === 'approved' || s === 'scheduled' || s
 /** Covers rotate through the four brand colours: decoration, never meaning (docs/DESIGN.md). */
 const TONES = ['violet', 'red', 'green', 'orange'] as const;
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * The open year and month live in the address (?year=2027&month=2027-03), so
  * a reload or a link opens the same place. Written with history, not the
  * router: a choice here needs nothing new from the server.
  */
-function remember(params: Record<string, string>) {
+function remember(year: number | null, month: string | null) {
   const next = new URLSearchParams(window.location.search);
-  for (const [k, v] of Object.entries(params)) next.set(k, v);
-  window.history.replaceState(window.history.state, '', `${window.location.pathname}?${next.toString()}`);
+  if (year) next.set('year', String(year)); else next.delete('year');
+  if (month) next.set('month', month); else next.delete('month');
+  const qs = next.toString();
+  window.history.replaceState(window.history.state, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
 }
 
 /**
- * QuinB Community › Content strategy (Giulia, 17 Oct 2026): the years as a
- * gallery of cards; a year opens its months as a second gallery under it;
- * a month opens its weeks as a list, each week folding open to its theme,
- * its plan and a post for every day.
+ * QuinB Community › Content strategy (Giulia, 18 Oct 2026): the years are a
+ * gallery of cards, as in Notion. A card opens its year in a window on the
+ * other half of the screen: its cover, its fields and its months, again as
+ * cards. A month opens in the same window, with its weeks as a list that
+ * folds open to the week's theme, its plan and a post for every day.
  */
 export function Plan({ years, months, weeks, types, posts, postsHref }: {
   years: QuinbYear[]; months: QuinbMonth[]; weeks: QuinbWeek[]; types: QuinbPostType[]; posts: QuinbPost[];
@@ -68,22 +73,30 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
   ])].sort((a, b) => a - b), [years, months, thisYear]);
 
   const params = useSearchParams();
-  const [year, setYear] = useState(() => {
+  const [open, setOpen] = useState<{ year: number | null; month: string | null }>(() => {
     const y = Number(params.get('year'));
-    return yearList.includes(y) ? y : thisYear;
-  });
-  const monthsOfYear = MONTH_SHORT.map((_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
-  const [month, setMonth] = useState(() => {
+    if (!yearList.includes(y)) return { year: null, month: null };
     const m = params.get('month') ?? '';
-    return m.startsWith(`${year}-`) && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? m : year === thisYear ? today.slice(0, 7) : `${year}-01`;
+    return { year: y, month: MONTH_RE.test(m) && m.startsWith(`${y}-`) ? m : null };
   });
-  const pickYear = (y: number) => {
-    const m = y === thisYear ? today.slice(0, 7) : `${y}-01`;
-    setYear(y); setMonth(m); remember({ year: String(y), month: m });
+  // Opened by her hand, not by the address: the keyboard follows her into the window.
+  const byHand = useRef(false);
+  const go = (year: number | null, month: string | null = null) => {
+    byHand.current = true;
+    setOpen({ year, month });
+    remember(year, month);
   };
-  const pickMonth = (m: string) => { setMonth(m); remember({ year: String(year), month: m }); };
+  const cards = useRef(new Map<number, HTMLButtonElement>());
+  const close = () => {
+    const y = open.year;
+    go(null);
+    // The keyboard goes back to the card the window came from.
+    if (y) requestAnimationFrame(() => cards.current.get(y)?.focus());
+  };
 
-  const yearRow = (y: number) => years.find((r) => r.year === y);
+  const box = useRef<HTMLDivElement>(null);
+  useScreenFit(box);
+
   const monthRow = useMemo(() => new Map(months.map((m) => [m.month, m])), [months]);
   const weekRow = useMemo(() => new Map(weeks.map((w) => [w.monday, w])), [weeks]);
   const typeByDay = useMemo(() => new Map(types.map((t) => [t.weekday, t])), [types]);
@@ -93,122 +106,53 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
     return m;
   }, [posts]);
   const planned = (y: number) => months.filter((m) => m.month.startsWith(`${y}-`) && m.theme).length;
-  const postsIn = (mondays: string[]) => mondays.flatMap(daysOfWeek).flatMap((d) => postsByDay.get(d) ?? []);
-
-  const y = yearRow(year);
-  const m = monthRow.get(month);
-  const mondays = weeksOfMonth(month);
-  const mPosts = postsIn(mondays);
 
   return (
-    <div className="plan">
-      <Gallery label="Years" active={String(year)}>
-        {yearList.map((yy, i) => {
-          const row = yearRow(yy);
-          const n = planned(yy);
-          return (
-            <CoverCard key={yy} id={String(yy)} size="year" tone={TONES[i % 4]} cover={row?.coverUrl ?? null} big={String(yy)}
-              title={String(yy)} subtitle={row?.theme ?? null} meta={n ? `${n} of 12 months planned` : 'No months planned yet'}
-              active={yy === year} onPick={() => pickYear(yy)} />
-          );
-        })}
-      </Gallery>
-
-      <section className="plan__level" aria-label={`${year}`}>
-        <LevelHead title={String(year)} theme={y?.theme ?? null} empty="No theme for this year yet" editLabel="Edit year" startOpen={!y?.theme} key={`yh-${year}`}>
-          <div className="plan__fields">
-            <Field wide label="Theme of the year" value={y?.theme ?? null} onSave={(v) => savePlan('year', String(year), 'theme', v)} />
-            <label className="pfield">
-              <span className="pfield__label">Audience</span>
-              <Sel value={y?.audience ?? ''} blank="—" options={AUDIENCES.map((a) => ({ value: a, label: a }))} label="Audience"
-                onChange={(v) => savePlan('year', String(year), 'audience', v)} />
-            </label>
-            <Field label="Focus" value={y?.focus ?? null} onSave={(v) => savePlan('year', String(year), 'focus', v)} />
-            <Field label="Goal" value={y?.goal ?? null} onSave={(v) => savePlan('year', String(year), 'goal', v)} />
-            <Field wide multiline rows={2} label="Notes" value={y?.notes ?? null} onSave={(v) => savePlan('year', String(year), 'notes', v)} />
-          </div>
-          <Banner noun="cover" url={y?.coverUrl ?? null} alt={`Cover of ${year}`} prefix={`cover-${year}`}
-            note={y?.coverUrl ? undefined : 'No picture: the card shows a designed cover.'}
-            onSave={(url) => savePlan('year', String(year), 'coverUrl', url)} />
-        </LevelHead>
-
-        <Gallery label={`Months of ${year}`} active={month}>
-          {monthsOfYear.map((mm, i) => {
-            const row = monthRow.get(mm);
-            const n = postsIn(weeksOfMonth(mm)).length;
+    <div ref={box} className={`plan${open.year ? ' plan--open' : ''}`}>
+      <section className="plan__side" aria-label="Years">
+        <div className="plan__gallery">
+          {yearList.map((yy, i) => {
+            const row = years.find((r) => r.year === yy);
+            const n = planned(yy);
             return (
-              <CoverCard key={mm} id={mm} size="month" tone={TONES[i % 4]} cover={row?.coverUrl ?? null} big={MONTH_SHORT[i]}
-                title={MONTHS[i]} subtitle={row?.theme ?? null} meta={n ? `${n} post${n === 1 ? '' : 's'}` : null}
-                active={mm === month} onPick={() => pickMonth(mm)} />
+              <PlanCard key={yy} id={String(yy)} tone={TONES[i % 4]} cover={row?.coverUrl ?? null} big={String(yy)}
+                title={String(yy)} subtitle={row?.theme ?? null} meta={n ? `${n} of 12 months planned` : 'No months planned yet'}
+                current={yy === open.year} onPick={() => go(yy)}
+                cardRef={(el) => { if (el) cards.current.set(yy, el); else cards.current.delete(yy); }} />
             );
           })}
-        </Gallery>
-
-        <section className="plan__level plan__level--month" aria-label={monthLabel(month)}>
-          <LevelHead title={monthLabel(month)} theme={m?.theme ?? null} empty="No theme for this month yet" editLabel="Edit month"
-            startOpen={!m?.theme} key={`mh-${month}`}
-            extra={mPosts.length ? `${mPosts.length} post${mPosts.length === 1 ? '' : 's'} · ${mPosts.filter((p) => isApproved(p.status)).length} approved` : null}>
-            <div className="plan__fields">
-              <Field wide label="Monthly theme" value={m?.theme ?? null} onSave={(v) => savePlan('month', month, 'theme', v)} />
-              <Field label="Focus" value={m?.focus ?? null} onSave={(v) => savePlan('month', month, 'focus', v)} />
-              <Field label="Goal" value={m?.goal ?? null} onSave={(v) => savePlan('month', month, 'goal', v)} />
-              <Field wide multiline rows={3} label="Note" placeholder="What we do this month, in your words." value={m?.note ?? null} onSave={(v) => savePlan('month', month, 'note', v)} />
-              <Field label="Link to NotebookLM" placeholder="https://notebooklm.google.com/…" value={m?.notebooklmUrl ?? null} onSave={(v) => savePlan('month', month, 'notebooklmUrl', v)} />
-            </div>
-            <Banner noun="cover" url={m?.coverUrl ?? null} alt={`Cover of ${monthLabel(month)}`} prefix={`cover-${month}`}
-              note={m?.coverUrl ? undefined : 'No picture: the card shows a designed cover.'}
-              onSave={(url) => savePlan('month', month, 'coverUrl', url)} />
-          </LevelHead>
-          <Weeks key={month} mondays={mondays} weekRow={weekRow} typeByDay={typeByDay} postsByDay={postsByDay} postsHref={postsHref} today={today} />
-        </section>
+        </div>
       </section>
+      {open.year ? (
+        <PlanWindow year={open.year} month={open.month} tone={TONES[yearList.indexOf(open.year) % 4]} byHand={byHand}
+          yearRow={years.find((r) => r.year === open.year)} monthRow={monthRow} weekRow={weekRow} typeByDay={typeByDay}
+          postsByDay={postsByDay} postsHref={postsHref} today={today}
+          onMonth={(m) => go(open.year, m)} onYear={() => go(open.year)} onClose={close} />
+      ) : null}
     </div>
   );
 }
 
-/** A row of cards that slides sideways, with buttons to slide and the chosen card kept in view. */
-function Gallery({ label, active, children }: { label: string; active: string; children: React.ReactNode }) {
-  const track = useRef<HTMLDivElement>(null);
-  const [edge, setEdge] = useState({ start: true, end: true });
-  const measure = () => {
-    const el = track.current;
-    if (!el) return;
-    setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
-  };
-  useEffect(() => {
-    const el = track.current;
-    if (!el) return;
-    el.querySelector<HTMLElement>(`[data-card="${CSS.escape(active)}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [active]);
-  const slide = (dir: number) => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.8, behavior: 'smooth' });
-  return (
-    <div className="gallery" role="group" aria-label={label}>
-      <button type="button" className="gallery__nav" aria-label={`${label}: back`} disabled={edge.start} onClick={() => slide(-1)}>‹</button>
-      <div className="gallery__track" ref={track} onScroll={measure}>{children}</div>
-      <button type="button" className="gallery__nav" aria-label={`${label}: further`} disabled={edge.end} onClick={() => slide(1)}>›</button>
-    </div>
-  );
-}
-
-/** A card in a gallery: her picture, or a designed cover; under it the name and the theme. */
-function CoverCard({ id, size, tone, cover, big, title, subtitle, meta, active, onPick }: {
-  id: string; size: 'year' | 'month'; tone: string; cover: string | null; big: string;
-  title: string; subtitle: string | null; meta: string | null; active: boolean; onPick: () => void;
+/** A card in the gallery, as in Notion: the cover on top, her picture or a designed one; under it the name, the theme and a count. */
+function PlanCard({ id, tone, cover, big, title, subtitle, meta, current, onPick, cardRef }: {
+  id: string; tone: string; cover: string | null; big: string; title: string; subtitle: string | null; meta: string | null;
+  current: boolean; onPick: () => void; cardRef?: (el: HTMLButtonElement | null) => void;
 }) {
   return (
-    <button type="button" data-card={id} className={`ccard ccard--${size}${active ? ' ccard--on' : ''}`} aria-pressed={active} onClick={onPick}>
-      <span className={`ccard__cover ccard__cover--${tone}`}>
+    <button ref={cardRef} type="button" data-card={id} className={`ccard${current ? ' ccard--on' : ''}`} aria-current={current ? 'true' : undefined} onClick={onPick}>
+      <span className={`ccard__cover cover--${tone}`}>
         {cover
           // eslint-disable-next-line @next/next/no-img-element -- her own picture, drawn as it is
           ? <img src={cover} alt="" loading="lazy" />
           : <span className="ccard__big" aria-hidden="true">{big}</span>}
       </span>
       <span className="ccard__body">
-        <span className="ccard__title">{title}</span>
+        <span className="ccard__title">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true">
+            <rect x="2.5" y="3.5" width="11" height="10" rx="1.5" /><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" />
+          </svg>
+          {title}
+        </span>
         <span className={`ccard__sub${subtitle ? '' : ' ccard__sub--none'}`}>{subtitle ?? 'No theme yet'}</span>
         {meta ? <span className="ccard__meta">{meta}</span> : null}
       </span>
@@ -216,20 +160,140 @@ function CoverCard({ id, size, tone, cover, big, title, subtitle, meta, active, 
   );
 }
 
-/** The chosen year or month: its name and theme, and its fields behind "Edit". */
-function LevelHead({ title, theme, empty, editLabel, startOpen, extra, children }: {
-  title: string; theme: string | null; empty: string; editLabel: string; startOpen: boolean; extra?: string | null; children: React.ReactNode;
+/**
+ * The window on the other half: a year, or a month of it. The cover on top
+ * takes her own picture; the fields save as she leaves them; the months are
+ * cards that open in this same window, with the year one step back above.
+ */
+function PlanWindow({ year, month, tone, byHand, yearRow, monthRow, weekRow, typeByDay, postsByDay, postsHref, today, onMonth, onYear, onClose }: {
+  year: number; month: string | null; tone: string; byHand: React.RefObject<boolean>;
+  yearRow: QuinbYear | undefined; monthRow: Map<string, QuinbMonth>; weekRow: Map<string, QuinbWeek>;
+  typeByDay: Map<number, QuinbPostType>; postsByDay: Map<string, QuinbPost[]>; postsHref: string; today: string;
+  onMonth: (m: string) => void; onYear: () => void; onClose: () => void;
 }) {
-  const [open, setOpen] = useState(startOpen);
+  const scroller = useRef<HTMLDivElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  // A newly opened year or month starts at its top; opened by her, the keyboard comes along.
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+    if (byHand.current) heading.current?.focus({ preventScroll: true });
+  }, [year, month, byHand]);
+
+  // Escape closes the window, unless something nearer is using it: a field being typed in, a dialog.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if ((e.target as Element | null)?.closest('input, textarea, select, dialog')) return;
+      if (document.querySelector('dialog[open]')) return;
+      closeRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const y = yearRow;
+  const mi = month ? Number(month.slice(5)) - 1 : -1;
+  const m = month ? monthRow.get(month) : undefined;
+  const postsIn = (mondays: string[]) => mondays.flatMap(daysOfWeek).flatMap((d) => postsByDay.get(d) ?? []);
+  const mPosts = month ? postsIn(weeksOfMonth(month)) : [];
+
   return (
-    <div className="plan__levelhead">
-      <div className="plan__levelrow">
-        <h2 className="plan__leveltitle">{title}</h2>
-        <span className={`plan__leveltheme${theme ? '' : ' muted'}`}>{theme ?? empty}</span>
-        {extra ? <span className="muted plan__count">{extra}</span> : null}
-        <button type="button" className="btn btn--ghost btn--tiny plan__edit" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Done' : editLabel}</button>
+    <section className="pwin" aria-label={month ? monthLabel(month) : String(year)}>
+      <div className="pwin__bar">
+        <button type="button" className="peek__btn" aria-label="Close" title="Close (Esc)" onClick={onClose}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+        </button>
+        <nav className="pwin__crumbs" aria-label="Where you are">
+          {month ? (
+            <>
+              <button type="button" className="pwin__crumb" onClick={onYear}>{year}</button>
+              <span aria-hidden="true">›</span>
+              <span className="pwin__crumb pwin__crumb--here" aria-current="page">{MONTHS[mi]}</span>
+            </>
+          ) : <span className="pwin__crumb pwin__crumb--here" aria-current="page">{year}</span>}
+        </nav>
       </div>
-      {open ? <div className="plan__levelbody">{children}</div> : null}
+
+      <div className="pwin__scroll" ref={scroller}>
+        {month ? (
+          <>
+            <Cover key={month} url={m?.coverUrl ?? null} tone={TONES[mi % 4]} big={MONTH_SHORT[mi]} alt={`Cover of ${monthLabel(month)}`}
+              prefix={`cover-${month}`} onSave={(url) => savePlan('month', month, 'coverUrl', url)} />
+            <div className="pwin__page">
+              <h2 className="pwin__title" ref={heading} tabIndex={-1}>{monthLabel(month)}</h2>
+              {mPosts.length ? <p className="muted pwin__sub">{mPosts.length} post{mPosts.length === 1 ? '' : 's'} · {mPosts.filter((p) => isApproved(p.status)).length} approved</p> : null}
+              <div className="plan__fields" key={`mf-${month}`}>
+                <Field wide label="Monthly theme" value={m?.theme ?? null} onSave={(v) => savePlan('month', month, 'theme', v)} />
+                <Field label="Focus" value={m?.focus ?? null} onSave={(v) => savePlan('month', month, 'focus', v)} />
+                <Field label="Goal" value={m?.goal ?? null} onSave={(v) => savePlan('month', month, 'goal', v)} />
+                <Field wide multiline rows={3} label="Note" placeholder="What we do this month, in your words." value={m?.note ?? null} onSave={(v) => savePlan('month', month, 'note', v)} />
+                <Field wide label="Link to NotebookLM" placeholder="https://notebooklm.google.com/…" value={m?.notebooklmUrl ?? null} onSave={(v) => savePlan('month', month, 'notebooklmUrl', v)} />
+              </div>
+              <h3 className="pwin__h">Weeks</h3>
+              <Weeks key={month} mondays={weeksOfMonth(month)} weekRow={weekRow} typeByDay={typeByDay} postsByDay={postsByDay} postsHref={postsHref} today={today} />
+            </div>
+          </>
+        ) : (
+          <>
+            <Cover key={year} url={y?.coverUrl ?? null} tone={tone} big={String(year)} alt={`Cover of ${year}`}
+              prefix={`cover-${year}`} onSave={(url) => savePlan('year', String(year), 'coverUrl', url)} />
+            <div className="pwin__page">
+              <h2 className="pwin__title" ref={heading} tabIndex={-1}>{year}</h2>
+              <div className="plan__fields" key={`yf-${year}`}>
+                <Field wide label="Theme of the year" value={y?.theme ?? null} onSave={(v) => savePlan('year', String(year), 'theme', v)} />
+                <label className="pfield">
+                  <span className="pfield__label">Audience</span>
+                  <Sel value={y?.audience ?? ''} blank="—" options={AUDIENCES.map((a) => ({ value: a, label: a }))} label="Audience"
+                    onChange={(v) => savePlan('year', String(year), 'audience', v)} />
+                </label>
+                <Field label="Focus" value={y?.focus ?? null} onSave={(v) => savePlan('year', String(year), 'focus', v)} />
+                <Field wide label="Goal" value={y?.goal ?? null} onSave={(v) => savePlan('year', String(year), 'goal', v)} />
+                <Field wide multiline rows={3} label="Notes" value={y?.notes ?? null} onSave={(v) => savePlan('year', String(year), 'notes', v)} />
+              </div>
+              <h3 className="pwin__h">Months</h3>
+              <div className="plan__gallery plan__gallery--months">
+                {MONTH_SHORT.map((short, i) => {
+                  const mm = `${year}-${String(i + 1).padStart(2, '0')}`;
+                  const row = monthRow.get(mm);
+                  const n = postsIn(weeksOfMonth(mm)).length;
+                  return (
+                    <PlanCard key={mm} id={mm} tone={TONES[i % 4]} cover={row?.coverUrl ?? null} big={short}
+                      title={MONTHS[i]} subtitle={row?.theme ?? null} meta={n ? `${n} post${n === 1 ? '' : 's'}` : null}
+                      current={false} onPick={() => onMonth(mm)} />
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** The cover at the top of the window, as in Notion: her picture, or the designed cover until she adds one. */
+function Cover({ url, tone, big, alt, prefix, onSave }: {
+  url: string | null; tone: string; big: string; alt: string; prefix: string; onSave: (url: string) => Promise<Result>;
+}) {
+  const up = useImageUpload(prefix, onSave);
+  return (
+    <div className="pcover-wrap">
+      <div className={`pcover cover--${tone}`}>
+        {url
+          // eslint-disable-next-line @next/next/no-img-element -- her own picture, drawn as it is
+          ? <img src={url} alt={alt} />
+          : <span className="pcover__big" aria-hidden="true">{big}</span>}
+        <div className="pcover__actions">
+          <input ref={up.input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={up.onPick} />
+          <button type="button" className="pcover__btn" disabled={up.busy} onClick={up.choose}>
+            {up.busy ? 'Uploading…' : url ? 'Change cover' : 'Add your own picture'}
+          </button>
+          {url ? <button type="button" className="pcover__btn" disabled={up.busy} onClick={up.remove}>Remove</button> : null}
+        </div>
+      </div>
+      {up.error ? <p className="cell__error pcover__error" role="alert">{up.error}</p> : null}
     </div>
   );
 }
@@ -484,7 +548,8 @@ function PostPanel({ post, type, closeHref }: { post: QuinbPost; type: QuinbPost
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-function Banner({ url, alt, prefix, note, onSave, noun = 'banner' }: { url: string | null; alt: string; prefix: string; note?: string; onSave: (url: string) => Promise<Result>; noun?: string }) {
+/** Uploads a picture to the banner bucket and saves its address; saving '' removes it. */
+function useImageUpload(prefix: string, onSave: (url: string) => Promise<Result>) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -506,23 +571,38 @@ function Banner({ url, alt, prefix, note, onSave, noun = 'banner' }: { url: stri
     if (r.error) setError(r.error);
   }
 
+  return {
+    input, busy, error,
+    choose: () => input.current?.click(),
+    onPick: (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); },
+    remove: async () => {
+      setError(null); setBusy(true);
+      const r = await onSave('');
+      setBusy(false);
+      if (r.error) setError(r.error);
+    },
+  };
+}
+
+function Banner({ url, alt, prefix, note, onSave }: { url: string | null; alt: string; prefix: string; note?: string; onSave: (url: string) => Promise<Result> }) {
+  const up = useImageUpload(prefix, onSave);
+
   return (
     <div className="banner">
-      {url ? <img className="banner__img" src={url} alt={alt} /> : <div className="banner__empty">No {noun} yet</div>}
+      {url ? <img className="banner__img" src={url} alt={alt} /> : <div className="banner__empty">No banner yet</div>}
       {note ? <p className="muted banner__note">{note}</p> : null}
       <div className="banner__actions">
-        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void upload(f); }} />
-        <button type="button" className="btn btn--ghost btn--tiny" disabled={busy} onClick={() => input.current?.click()}>
-          {busy ? 'Uploading…' : url && !note ? `Replace ${noun}` : `Upload ${noun}`}
+        <input ref={up.input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={up.onPick} />
+        <button type="button" className="btn btn--ghost btn--tiny" disabled={up.busy} onClick={up.choose}>
+          {up.busy ? 'Uploading…' : url && !note ? 'Replace banner' : 'Upload banner'}
         </button>
         {url && !note ? (
           <>
             <a className="btn btn--ghost btn--tiny" href={url} target="_blank" rel="noreferrer">Open full size</a>
-            <button type="button" className="btn btn--ghost btn--tiny" disabled={busy} onClick={async () => { const r = await onSave(''); if (r.error) setError(r.error); }}>Remove</button>
+            <button type="button" className="btn btn--ghost btn--tiny" disabled={up.busy} onClick={up.remove}>Remove</button>
           </>
         ) : null}
-        {error ? <span className="cell__error">{error}</span> : null}
+        {up.error ? <span className="cell__error">{up.error}</span> : null}
       </div>
     </div>
   );

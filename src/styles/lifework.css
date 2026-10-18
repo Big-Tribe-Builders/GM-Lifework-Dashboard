@@ -2078,48 +2078,65 @@ a.dsettings__item { text-decoration: none; }
 .post__text { min-height: 40vh; font: 15px/1.65 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
 
 /* ------------------------------------------------------- quinb plan */
-/* QuinB Community › Content strategy (Giulia, 17 Oct 2026): the years as a
-   gallery of cards, the chosen year's months as a second gallery under it,
-   the chosen month's weeks as a list that folds open. */
-.plan { min-height: 100%; padding-bottom: 32px; background: var(--grid-canvas); }
-.gallery { display: flex; align-items: center; gap: 6px; padding: 12px 8px; }
-.gallery__track { display: flex; flex: 1; gap: 14px; min-width: 0; padding: 4px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
-.gallery__nav { flex: none; width: 30px; height: 30px; border: 1px solid var(--hairline); border-radius: 50%; background: var(--surface); font: inherit; font-size: 18px; line-height: 1; color: var(--ink-soft); cursor: pointer; }
-.gallery__nav:hover:not(:disabled) { border-color: var(--faint); color: var(--ink); }
-.gallery__nav:disabled { opacity: .35; cursor: default; }
-.gallery__nav:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 2px; }
-.ccard { display: flex; flex: none; flex-direction: column; padding: 0; overflow: hidden; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); font: inherit; text-align: left; color: var(--ink); cursor: pointer; scroll-snap-align: start; transition: box-shadow 150ms, border-color 150ms; }
-.ccard--year { width: 250px; }
-.ccard--month { width: 180px; }
-.ccard:hover { box-shadow: var(--shadow-hover); }
+/* QuinB Community › Content strategy (Giulia, 18 Oct 2026): a gallery as in
+   Notion. The years are cards; a card opens its year in a window on the
+   other half of the screen, with its months as cards; a month opens in the
+   same window. The two halves fill the screen under the toolbar and scroll
+   on their own. */
+.plan { display: grid; grid-template-columns: minmax(0, 1fr); height: var(--screen-fit, calc(100dvh - var(--chrome-h))); min-height: 360px; background: var(--grid-canvas); }
+.plan--open { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.plan__side { min-width: 0; min-height: 0; padding: 20px; overflow-y: auto; }
+.plan__gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.plan__gallery--months { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.ccard { display: flex; flex-direction: column; min-width: 0; padding: 0; overflow: hidden; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface); font: inherit; text-align: left; color: var(--ink); cursor: pointer; transition: background 150ms, box-shadow 150ms, border-color 150ms; }
+.ccard:hover { background: var(--grey-50); box-shadow: var(--shadow-hover); }
 /* The open one: a dark ring, not a colour, so it reads on every cover. */
 .ccard--on, .ccard--on:hover { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
 .ccard:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 3px; }
-.ccard__cover { display: grid; place-items: center; height: 110px; overflow: hidden; color: #fff; }
-.ccard--month .ccard__cover { height: 76px; }
+.ccard__cover { display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-bottom: 1px solid var(--hairline); color: #fff; }
 .ccard__cover img { width: 100%; height: 100%; object-fit: cover; }
-.ccard__cover--violet { background: linear-gradient(135deg, var(--brand-violet), var(--brand-violet-deep)); }
-.ccard__cover--red { background: linear-gradient(135deg, var(--brand-red), var(--brand-red-deep)); }
-.ccard__cover--green { background: linear-gradient(135deg, var(--brand-green), var(--brand-green-deep)); }
-.ccard__cover--orange { background: linear-gradient(135deg, var(--brand-orange), var(--brand-orange-deep)); }
-.ccard__big { font-size: 38px; font-weight: 700; letter-spacing: -.02em; }
-.ccard--month .ccard__big { font-size: 26px; }
-.ccard__body { display: flex; flex: 1; flex-direction: column; gap: 2px; min-height: 76px; padding: 10px 12px 12px; }
-.ccard__title { font-size: 14px; font-weight: 650; }
+.cover--violet { background: linear-gradient(135deg, var(--brand-violet), var(--brand-violet-deep)); }
+.cover--red { background: linear-gradient(135deg, var(--brand-red), var(--brand-red-deep)); }
+.cover--green { background: linear-gradient(135deg, var(--brand-green), var(--brand-green-deep)); }
+.cover--orange { background: linear-gradient(135deg, var(--brand-orange), var(--brand-orange-deep)); }
+.ccard__big { font-size: 40px; font-weight: 700; letter-spacing: -.02em; }
+.plan__gallery--months .ccard__big { font-size: 26px; }
+.ccard__body { display: flex; flex: 1; flex-direction: column; gap: 3px; padding: 10px 12px 12px; }
+.ccard__title { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; }
+.ccard__title svg { flex: none; width: 15px; height: 15px; color: var(--muted); }
 .ccard__sub { display: -webkit-box; overflow: hidden; font-size: 13px; line-height: 1.4; color: var(--ink-soft); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .ccard__sub--none { color: var(--muted); }
 .ccard__meta { margin-top: auto; padding-top: 4px; font-size: 12px; color: var(--muted); }
-.plan__level { margin: 0 12px 16px; overflow: hidden; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); }
-.plan__level--month { margin: 0; border: 0; border-top: 1px solid var(--grid-line); border-radius: 0; }
-.plan__level > .gallery { border-bottom: 1px solid var(--grid-line); background: var(--grey-50); }
-.plan__levelhead { padding: 12px 16px; border-bottom: 1px solid var(--grid-line); }
-.plan__levelrow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.plan__leveltitle { margin: 0; font-size: 18px; font-weight: 650; }
-.plan__leveltheme { flex: 1; min-width: 200px; font-size: 14px; color: var(--ink-soft); }
-.plan__levelrow .plan__count { margin-left: 0; }
-.plan__levelbody { display: grid; gap: 8px; padding-top: 10px; }
-.plan__weekbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+.pwin { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); border-left: 1px solid var(--grid-line); container-type: inline-size; }
+.pwin__bar { flex: none; display: flex; align-items: center; gap: 8px; height: var(--chrome-tool); padding: 0 12px; border-bottom: 1px solid var(--grid-line); }
+.pwin__bar .peek__btn { padding: 0; border: 0; background: none; cursor: pointer; }
+.pwin__bar .peek__btn:hover { background: var(--grey-100); }
+.pwin__bar .peek__btn:focus-visible, .pwin__crumb:focus-visible { outline: 2px solid var(--accent, var(--brand-violet)); outline-offset: 1px; }
+.pwin__crumbs { display: flex; align-items: center; gap: 2px; min-width: 0; font-size: 14px; color: var(--muted); }
+.pwin__crumb { padding: 3px 6px; border: 0; border-radius: 6px; background: none; font: inherit; color: var(--ink-soft); white-space: nowrap; }
+button.pwin__crumb { cursor: pointer; }
+button.pwin__crumb:hover { background: var(--grey-100); color: var(--ink); }
+.pwin__crumb--here { font-weight: 600; color: var(--ink); }
+.pwin__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.pcover { position: relative; display: grid; place-items: center; height: 190px; overflow: hidden; color: #fff; }
+.pcover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pcover__big { font-size: 64px; font-weight: 700; letter-spacing: -.02em; }
+.pcover__actions { position: absolute; right: 12px; bottom: 10px; display: flex; gap: 6px; }
+.pcover__btn { padding: 5px 10px; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .92); box-shadow: 0 1px 3px rgba(10, 12, 18, .25); font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.pcover__btn:hover:not(:disabled) { background: #fff; }
+.pcover__btn:disabled { opacity: .7; cursor: default; }
+.pcover__btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.pcover__error { margin: 8px 24px 0; }
+.pwin__page { padding: 20px 24px 40px; }
+.pwin__title { margin: 0 0 4px; font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
+.pwin__title:focus { outline: none; }
+.pwin__sub { margin: 0 0 8px; font-size: 13px; }
+.pwin__page .plan__fields { padding-top: 10px; }
+.pwin__h { margin: 22px 0 10px; font-size: 14px; font-weight: 650; }
+.pwin .plan__weeks { overflow: hidden; border: 1px solid var(--grid-line); border-radius: 10px; }
+.pwin .plan__week:first-of-type { border-top: 1px solid var(--grid-line); }
 .plan__count { font-size: 12px; margin-left: auto; white-space: nowrap; }
+.plan__weekbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; color: var(--muted); }
 .plan__fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 14px; padding: 4px 0 10px; }
 .pfield { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .pfield--wide { grid-column: 1 / -1; }
@@ -2151,7 +2168,19 @@ a.dsettings__item { text-decoration: none; }
 .typebrief summary { cursor: pointer; font-weight: 600; color: var(--ink-soft); }
 .typebrief__text { white-space: pre-wrap; margin: 8px 0 0; }
 .banner__note { margin: 0; font-size: 12px; }
-@media (max-width: 900px) { .plan__day { grid-template-columns: 90px 1fr; } .plan__posts { grid-column: 1 / -1; } .plan__body, .plan__body--week { padding-left: 12px; } }
+/* A narrow window: a day's posts go under its name and type. */
+@container (max-width: 620px) { .plan__day { grid-template-columns: 90px 1fr; } .plan__posts { grid-column: 1 / -1; } .plan__head--week { padding-left: 12px; } .plan__body--week { padding-left: 12px; } }
+/* A phone: the window takes the whole screen; × goes back to the cards. */
+@media (max-width: 900px) {
+  .plan--open { grid-template-columns: minmax(0, 1fr); }
+  .plan--open .plan__side { display: none; }
+  .plan__side { padding: 12px; }
+  .pwin { border-left: 0; }
+  .pcover { height: 130px; }
+  .pcover__big { font-size: 44px; }
+  .pwin__page { padding: 16px 14px 32px; }
+  .pcover__error { margin: 8px 14px 0; }
+}
 
 .notice__list { margin: 2px 0 0; padding-left: 18px; }
 .notice__list li { margin: 1px 0; }
