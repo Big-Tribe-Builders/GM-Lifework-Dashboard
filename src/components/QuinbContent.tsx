@@ -42,15 +42,18 @@ const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * The open year and month live in the address (?year=2027&month=2027-03), so
- * a reload or a link opens the same place. Written with history, not the
- * router: a choice here needs nothing new from the server.
+ * a reload or a link opens the same place, and Back steps back through what
+ * she opened. Written with history, not the router: a choice here needs
+ * nothing new from the server. The state is left to Next (null), so its
+ * router follows the address; otherwise the refresh after a save puts the
+ * old address back.
  */
 function remember(year: number | null, month: string | null) {
   const next = new URLSearchParams(window.location.search);
   if (year) next.set('year', String(year)); else next.delete('year');
   if (month) next.set('month', month); else next.delete('month');
   const qs = next.toString();
-  window.history.replaceState(window.history.state, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+  window.history.pushState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
 }
 
 /**
@@ -72,27 +75,30 @@ export function Plan({ years, months, weeks, types, posts, postsHref }: {
     ...years.map((y) => y.year), ...months.map((m) => Number(m.month.slice(0, 4))), thisYear, thisYear + 1,
   ])].sort((a, b) => a - b), [years, months, thisYear]);
 
+  // What is open follows the address, so Back and Forward move through it too.
   const params = useSearchParams();
-  const [open, setOpen] = useState<{ year: number | null; month: string | null }>(() => {
-    const y = Number(params.get('year'));
-    if (!yearList.includes(y)) return { year: null, month: null };
-    const m = params.get('month') ?? '';
-    return { year: y, month: MONTH_RE.test(m) && m.startsWith(`${y}-`) ? m : null };
-  });
-  // Opened by her hand, not by the address: the keyboard follows her into the window.
+  const qYear = Number(params.get('year'));
+  const qMonth = params.get('month') ?? '';
+  const open = useMemo(() => {
+    if (!yearList.includes(qYear)) return { year: null, month: null };
+    return { year: qYear, month: MONTH_RE.test(qMonth) && qMonth.startsWith(`${qYear}-`) ? qMonth : null };
+  }, [yearList, qYear, qMonth]);
+  // Opened by her hand, not by a link: the keyboard follows her into the window.
   const byHand = useRef(false);
   const go = (year: number | null, month: string | null = null) => {
     byHand.current = true;
-    setOpen({ year, month });
     remember(year, month);
   };
+  // When the window closes (×, Escape or Back), the keyboard goes back to the card it came from.
   const cards = useRef(new Map<number, HTMLButtonElement>());
-  const close = () => {
-    const y = open.year;
-    go(null);
-    // The keyboard goes back to the card the window came from.
-    if (y) requestAnimationFrame(() => cards.current.get(y)?.focus());
-  };
+  const was = useRef(open.year);
+  useEffect(() => {
+    const prev = was.current;
+    was.current = open.year;
+    const lost = !document.activeElement || document.activeElement === document.body;
+    if (prev && !open.year && lost) cards.current.get(prev)?.focus();
+  }, [open.year]);
+  const close = () => go(null);
 
   const box = useRef<HTMLDivElement>(null);
   useScreenFit(box);
@@ -183,14 +189,20 @@ function PlanWindow({ year, month, tone, byHand, yearRow, monthRow, weekRow, typ
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   useEffect(() => {
+    // A menu or dialog that was open when the key went down takes this Escape
+    // for itself (the settings cog, a menu in the rail). Looked at before
+    // anyone handles the key: a menu that closes on it is gone by the time it
+    // reaches the window.
+    let taken = false;
+    const look = (e: KeyboardEvent) => { if (e.key === 'Escape') taken = !!document.querySelector('dialog[open], [role="menu"], [role="dialog"]'); };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (e.key !== 'Escape' || e.defaultPrevented || taken) return;
       if ((e.target as Element | null)?.closest('input, textarea, select, dialog')) return;
-      if (document.querySelector('dialog[open]')) return;
       closeRef.current();
     };
+    window.addEventListener('keydown', look, true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => { window.removeEventListener('keydown', look, true); window.removeEventListener('keydown', onKey); };
   }, []);
 
   const y = yearRow;

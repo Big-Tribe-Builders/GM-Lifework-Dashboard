@@ -66,7 +66,8 @@ export function Conversations({ threads, more, days, max }: { threads: ThreadVie
     const next = new URLSearchParams(window.location.search);
     if (id) next.set(POST_PARAM, String(id)); else next.delete(POST_PARAM);
     const qs = next.toString();
-    window.history.replaceState(window.history.state, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    // null, not the current state: Next's router then follows the address, and the refresh after an answer keeps it.
+    window.history.replaceState(null, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
   };
 
   const split = useRef<HTMLDivElement>(null);
