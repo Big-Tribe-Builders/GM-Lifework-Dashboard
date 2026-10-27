@@ -17,6 +17,7 @@ import { About, Chapters } from '@/components/Book';
 import { Members } from '@/components/QuinbMembers';
 import { Plan, PostTypes, Posts } from '@/components/QuinbContent';
 import { ConversationsTab, EventsTab } from '@/components/QuinbLive';
+import { FollowupsTab } from '@/components/FollowupsTab';
 import { todayIso } from '@/lib/calendar';
 import { RESEND_ENV } from '@/lib/resend';
 import { pulseFor } from '@/lib/pulse';
@@ -67,6 +68,7 @@ function membersZone(domain: Domain, tab: Tab, b: Bundle, view: ViewOpts): React
   return (
     <Portal note={<SourceNote source={b.source} error={b.error} missingEnv={b.missingEnv} />}>
       {tab.slug === 'conversations' ? <ConversationsTab />
+        : tab.slug === 'followups' ? <FollowupsTab members={b.quinbMembers} />
         : tab.slug === 'events' ? <EventsTab />
         : tab.slug === 'upcoming' ? <Posts rows={b.quinbPosts.filter((p) => !!p.plannedFor && p.plannedFor >= today && p.status !== 'posted' && p.status !== 'cancelled')}
             types={b.quinbPostTypes} settings={columnsFor(view.columns ?? [], store)} accent={domain.accent} store={store} peek={view.peek} base={base}

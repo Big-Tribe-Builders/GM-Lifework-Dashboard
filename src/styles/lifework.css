@@ -2587,3 +2587,22 @@ button.pwin__crumb:hover { background: var(--grey-100); color: var(--ink); }
   .events__row { grid-template-columns: minmax(0, 1fr) auto; }
   .events__when { grid-column: 1 / -1; }
 }
+
+/* QuinB Community › Follow-ups (Giulia, 27 Oct 2026): the Conversations split,
+   with the refresh bar above it and the numbers above the list. Layout only;
+   the look comes from the existing classes. */
+.fu__top { flex-wrap: wrap; }
+.fu__last { flex: 1; min-width: 0; font-size: 12px; }
+.fu__error, .fu__notes { flex-basis: 100%; margin: 0; }
+.fu__notes ul { margin: 6px 0 0; padding-left: 18px; }
+.fu__numbers { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px 12px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--grid-line); }
+.fu__number { min-width: 0; }
+.fu__number dd { margin: 0; }
+.fu__number .stat__value { margin-top: 2px; font-size: 22px; }
+.fu__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 10px 0 0; font-size: 13px; }
+.fu__facts dt { color: var(--muted); }
+.fu__facts dd { margin: 0; }
+.fu__note { flex: 1; min-width: 160px; padding: 6px 8px; border: 1px solid var(--hairline); border-radius: 8px; font: inherit; font-size: 13px; background: #fff; }
+.fu__history { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 0; padding: 0; list-style: none; }
+.fu__entry { padding-top: 8px; border-top: 1px solid var(--grid-line); }
+.fu__entry:first-child { padding-top: 0; border-top: 0; }

@@ -39,6 +39,8 @@ const NETWORK_ID = /^(\d+|[a-z][a-z0-9-]+)$/;
 // Trimmed: a value pasted into Vercel can carry a space or a line break.
 const apiKey = () => (process.env.MIGHTY_API_KEY ?? '').trim();
 const networkId = () => (process.env.MIGHTY_NETWORK_ID ?? '').trim() || QUINB_NETWORK;
+/** The network's number or subdomain, as the API addresses it. */
+export const mightyNetwork = networkId;
 
 /** missing: not set at all. wrong: set, but to something the API cannot take. */
 export function mightyReady(): { ok: true } | { ok: false; missing: string[]; wrong: string[] } {
@@ -114,10 +116,10 @@ type Got<T> = { data: T } | { error: string };
  * try again). A 429 is waited out: Retry-After when Mighty sends it, else 2
  * and then 5 seconds, twice at most, so a page never hangs for long.
  */
-const RETRY_WAITS = [2_000, 5_000];
+export const RETRY_WAITS = [2_000, 5_000];
 const MAX_WAIT = 8_000;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-function retryAfter(res: Response, fallback: number): number {
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export function retryAfter(res: Response, fallback: number): number {
   const h = res.headers.get('retry-after');
   if (!h) return fallback;
   const secs = Number(h);
@@ -385,6 +387,20 @@ export async function readEvents(): Promise<{ events: (Occurrence & { space: str
   }).map((o) => ({ ...o, space: o.spaceId != null ? names.get(o.spaceId) ?? null : null, link: linkOf(o.permalink, sub) }));
   out.sort((a, b) => ms(a.start) - ms(b.start));
   return { events: out, until: new Date(until).toISOString() };
+}
+
+/**
+ * Each member's profile link as Mighty gives it (the member list's
+ * permalink), by member number. For Follow-ups' "Open profile in QuinB":
+ * links are taken from Mighty, never made up.
+ */
+export async function readMemberLinks(): Promise<Map<string, string> | { error: string }> {
+  const members = await all<MnMember>('/members', 50);
+  if ('error' in members) return members;
+  const sub = /^\d+$/.test(networkId()) ? null : networkId();
+  const out = new Map<string, string>();
+  for (const m of members.data) { const l = linkOf(m.permalink, sub); if (l) out.set(String(m.id), l); }
+  return out;
 }
 
 // ----------------------------------------------------------------- writing

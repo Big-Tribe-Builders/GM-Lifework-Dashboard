@@ -230,19 +230,24 @@ const initials = (name: string) =>
 
 /** Their picture from QuinB, or their initials when there is none (or it does not load). */
 function Avatar({ n, small }: { n: NoteView; small?: boolean }) {
+  return <Face name={n.authorName} avatar={n.avatar} small={small} />;
+}
+
+/** A member's picture, or their initials when there is none (or it does not load). Also used by Follow-ups. */
+export function Face({ name, avatar, small }: { name: string; avatar: string | null | undefined; small?: boolean }) {
   const [broken, setBroken] = useState(false);
   const img = useRef<HTMLImageElement>(null);
   // A picture that failed before the page came alive never reports it to onError; look once it has.
   useEffect(() => {
     const el = img.current;
     if (el && el.complete && el.naturalWidth === 0) setBroken(true);
-  }, [n.avatar]);
+  }, [avatar]);
   const cls = `convo__avatar${small ? ' convo__avatar--sm' : ''}`;
-  if (n.avatar && !broken) {
+  if (avatar && !broken) {
     // eslint-disable-next-line @next/next/no-img-element -- an outside picture, drawn as it is
-    return <img ref={img} className={cls} src={n.avatar} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
+    return <img ref={img} className={cls} src={avatar} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
   }
-  return <span className={`${cls} convo__avatar--initials`} aria-hidden="true">{initials(n.authorName)}</span>;
+  return <span className={`${cls} convo__avatar--initials`} aria-hidden="true">{initials(name)}</span>;
 }
 
 /** The text with its own line breaks; one that runs longer than a few lines folds, with "Show more". */

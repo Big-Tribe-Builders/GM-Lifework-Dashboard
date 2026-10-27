@@ -35,4 +35,30 @@ export type QuinbMember = {
   interactions: number | null;
   notes: string | null;
   updatedAt: string;
+  /** From "Refresh from QuinB" (migration 0025); absent before it has run. */
+  mightyId?: string | null;
+  /** The GlobalID, which private messages are addressed to. */
+  mightyGid?: string | null;
+  firstName?: string | null;
+  /** HOST, MODERATOR, CONTRIBUTOR or null. */
+  role?: string | null;
+  /** FULL_MEMBER or LIMITED_MEMBER. */
+  memberType?: string | null;
+  /** ACTIVE, SUSPENDED or ARCHIVED. */
+  membershipStatus?: string | null;
+  plans?: string[] | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  profileUrl?: string | null;
+  lastActiveAt?: string | null;
+  /** When a refresh last saw them in QuinB. */
+  seenAt?: string | null;
+  /** When a refresh no longer found them in QuinB. */
+  leftQuinbAt?: string | null;
+  followupOff?: boolean | null;
+  pausedUntil?: string | null;
+  lastDmFromMemberAt?: string | null;
+  lastDmFromMeAt?: string | null;
+  dmConversationId?: string | null;
+  dmConversationUrl?: string | null;
 };
