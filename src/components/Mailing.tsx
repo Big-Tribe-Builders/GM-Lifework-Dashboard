@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { CrmEmail } from '@/lib/crm';
 import type { ColumnSetting } from '@/lib/grid';
 import {
-  VENTURES, MAIL_STYLES, CAMPAIGN_STATUS, CAMPAIGN_TONE, SEND_STATUS, PLACEHOLDERS, render, isoToBrussels,
+  VENTURES, MAIL_STYLES, CAMPAIGN_STATUS, CAMPAIGN_TONE, SEND_STATUS, PLACEHOLDERS, EVENT_CARD_HELP, render, isoToBrussels,
   type MailList, type MailListMember, type MailTemplate, type MailSender, type MailCampaign, type MailStep, type MailSend,
   type MailSuppression, type MailStyle, type CampaignKind,
 } from '@/lib/mail';
@@ -19,6 +19,7 @@ import { Grid, type Column } from '@/components/Grid';
 import { EditableCell } from '@/components/EditableCell';
 import { ConfirmDialog } from '@/components/ClientTable';
 import { shortDate } from '@/lib/upwork';
+import { useImageUpload } from '@/components/useImageUpload';
 
 /**
  * Mailing.
@@ -275,7 +276,7 @@ function TemplateEditor({ template, senders, onClose }: { template: MailTemplate
   const preview = render({
     subject, preheader, body, style,
     recipient: { email: 'someone@example.com', firstName: 'Misty', lastName: 'Example', city: 'Austin', personal: '(the personal line for this person)' },
-    quote: '(the quote set on the campaign)', sender: { fromName: sender?.fromName ?? 'Giulia May', address: sender?.address }, unsubscribeUrl: '#',
+    quote: '(the quote set on the campaign)', sender: { fromName: sender?.fromName ?? 'Giulia May', address: sender?.address, photoUrl: sender?.photoUrl }, unsubscribeUrl: '#',
   });
   function save() {
     setError(null);
@@ -299,6 +300,7 @@ function TemplateEditor({ template, senders, onClose }: { template: MailTemplate
           <div className="field"><label htmlFor="tpl-body">Body</label>
             <textarea id="tpl-body" rows={14} value={body} onChange={(e) => setBody(e.target.value)} placeholder={'Hi {{first_name}},\n\n{{personal}}\n\nA blank line makes a paragraph. **bold**, *italic*, [a link](https://…).'} /></div>
           <ul className="ph">{PLACEHOLDERS.map((p) => <li key={p.key}><code>{p.key}</code> <span className="muted">{p.what}</span></li>)}</ul>
+          <p className="muted ph__card">{EVENT_CARD_HELP}</p>
           {error ? <p className="field__error" role="alert">{error}</p> : null}
           <div className="dialog__actions">
             <button type="button" className="btn btn--ghost" onClick={() => ref.current?.close()} disabled={pending}>Cancel</button>
@@ -409,6 +411,7 @@ function Senders({ data, store, accent, venture }: { data: MailData; store: stri
     { key: 'fromEmail', label: 'From address', type: 'text', width: 240, render: t('fromEmail', 'From address') as never },
     { key: 'replyTo', label: 'Reply to', type: 'text', width: 220, render: t('replyTo', 'Reply to') as never },
     { key: 'address', label: 'Postal address (footer)', type: 'text', width: 360, render: t('address', 'Postal address') as never },
+    { key: 'photoUrl', label: 'Photo (signature)', type: 'text', width: 200, render: (r) => <SenderPhoto sender={r} /> },
     { key: 'del', label: 'Delete', type: 'text', width: 60, bare: true, render: (r) => <Remove table="mail_senders" id={r.id} what={`${r.fromName} <${r.fromEmail}>`} /> },
   ];
   return (
@@ -421,6 +424,22 @@ function Senders({ data, store, accent, venture }: { data: MailData; store: stri
       <Grid rows={data.senders} columns={columns} rowKey={(r) => r.id} store={store} accent={accent} empty="No senders yet."
         onColumnSettings={(k, i) => saveGridColumn(store, k, i)} />
     </details>
+  );
+}
+
+/** The photo next to the sender's name at the bottom of a QuinB or BTB mail. */
+function SenderPhoto({ sender }: { sender: MailSender }) {
+  const up = useImageUpload(`senders/${sender.id}`, (url) => updateMail('mail_senders', sender.id, 'photoUrl', url));
+  const url = sender.photoUrl ?? null;
+  return (
+    <span className="cell senderphoto">
+      {/* eslint-disable-next-line @next/next/no-img-element -- her own photo, drawn as it is */}
+      {url ? <img className="senderphoto__img" src={url} alt="" /> : null}
+      <input ref={up.input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={up.onPick} />
+      <button type="button" className="btn btn--ghost btn--tiny" disabled={up.busy} onClick={up.choose}>{up.busy ? 'Uploading…' : url ? 'Change' : 'Upload photo'}</button>
+      {url ? <button type="button" className="btn btn--ghost btn--tiny" disabled={up.busy} onClick={up.remove}>Remove</button> : null}
+      {up.error ? <span className="cell__error" role="alert">{up.error}</span> : null}
+    </span>
   );
 }
 
@@ -650,7 +669,7 @@ function EmailPreview({ sends, at, open, onOpen, onClose, onMove, templateFor, p
   const r = t ? render({
     subject: t.subject, preheader: t.preheader, body: t.body, style: t.style,
     recipient: { email: send.email, firstName: p?.firstName, lastName: p?.lastName, city: p?.city, personal: send.personalLine },
-    quote, sender: { fromName: sender?.fromName ?? '(no sender picked)', address: sender?.address }, unsubscribeUrl: '#',
+    quote, sender: { fromName: sender?.fromName ?? '(no sender picked)', address: sender?.address, photoUrl: sender?.photoUrl }, unsubscribeUrl: '#',
   }) : null;
   return (
     <div className="see">

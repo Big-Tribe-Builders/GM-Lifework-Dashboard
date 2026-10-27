@@ -1,10 +1,10 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 import { getSupabase } from '@/lib/supabase';
 import { EMAIL_RE } from '@/lib/mail';
 import { BANNER_BUCKET, POST_STATUSES, AUDIENCES, POST_KINDS } from '@/lib/quinb';
-import { answer } from '@/lib/mighty';
+import { answer, QUINB_CACHE } from '@/lib/mighty';
 
 /** Writes for the QuinB Community member list. */
 type Result = { error: string | null };
@@ -218,6 +218,8 @@ export async function answerInQuinb(postId: number, replyToId: number | null, te
   if (!Number.isInteger(postId) || postId <= 0 || (replyToId != null && (!Number.isInteger(replyToId) || replyToId <= 0))) return { error: 'Unknown post or comment.' };
   const r = await answer(postId, v, replyToId);
   if (r.error) return r;
+  // Her answer shows at once: the copy of Conversations kept for 5 minutes is dropped.
+  updateTag(QUINB_CACHE.conversations.tag);
   touched();
   return { error: null };
 }

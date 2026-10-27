@@ -13,7 +13,16 @@
  * and says so when a page comes in a shape it does not know.
  */
 
+import { occurrences, type MnEvent, type Occurrence } from '@/lib/events';
+
 export const MIGHTY_ENV = { key: 'MIGHTY_API_KEY', network: 'MIGHTY_NETWORK_ID' } as const;
+
+/**
+ * What was read from QuinB is kept a while (QuinbLive.tsx), so a reload does
+ * not ask Mighty again: Conversations 5 minutes, Events 15. Her own answer
+ * clears the Conversations copy at once.
+ */
+export const QUINB_CACHE = { conversations: { tag: 'quinb-conversations', seconds: 300 }, events: { tag: 'quinb-events', seconds: 900 } } as const;
 
 /** How far back the Conversations tab looks. */
 export const LOOK_BACK_DAYS = 30;
@@ -99,7 +108,24 @@ export type Thread = {
 
 type Got<T> = { data: T } | { error: string };
 
-async function call<T>(path: string, init?: { method?: string; body?: unknown }): Promise<Got<T>> {
+/**
+ * Mighty limits how many calls a key may make in a short time and answers 429
+ * past it (docs.mightynetworks.com › Admin API › rate limiting: back off and
+ * try again). A 429 is waited out: Retry-After when Mighty sends it, else 2
+ * and then 5 seconds, twice at most, so a page never hangs for long.
+ */
+const RETRY_WAITS = [2_000, 5_000];
+const MAX_WAIT = 8_000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+function retryAfter(res: Response, fallback: number): number {
+  const h = res.headers.get('retry-after');
+  if (!h) return fallback;
+  const secs = Number(h);
+  const ms = Number.isFinite(secs) ? secs * 1000 : Date.parse(h) - Date.now();
+  return Number.isFinite(ms) && ms > 0 ? Math.min(ms, MAX_WAIT) : fallback;
+}
+
+async function call<T>(path: string, init?: { method?: string; body?: unknown }, attempt = 0): Promise<Got<T>> {
   const ready = mightyReady();
   if (!ready.ok) {
     return { error: [
@@ -115,12 +141,18 @@ async function call<T>(path: string, init?: { method?: string; body?: unknown })
       cache: 'no-store',
       signal: AbortSignal.timeout(15_000),
     });
+    // Only reads are tried again: a post that reached Mighty must not be written twice.
+    if (res.status === 429 && (init?.method ?? 'GET') === 'GET' && attempt < RETRY_WAITS.length) {
+      await sleep(retryAfter(res, RETRY_WAITS[attempt]));
+      return call<T>(path, init, attempt + 1);
+    }
     const json = await res.json().catch(() => null);
     if (!res.ok) {
       const why = (json && typeof json === 'object' && 'error' in json) ? String((json as { error: unknown }).error) : res.statusText;
       // The spec's 401 also covers a key that belongs to another network than the one asked for.
       if (res.status === 401 || res.status === 403) return { error: `Mighty Networks refused the key for network ${networkId()} (${res.status}): ${why}. Check ${MIGHTY_ENV.key}, that it was made in that network, and that the plan includes the Admin API.` };
       if (res.status === 404 && path === '/me') return { error: `Mighty Networks does not know network ${networkId()}. Check ${MIGHTY_ENV.network}.` };
+      if (res.status === 429) return { error: `Mighty Networks says too many requests were made in a short time (429), and it still did after waiting. This page asks again in a few minutes by itself; reload then. (${why})` };
       return { error: `Mighty Networks answered ${res.status}: ${why}` };
     }
     return { data: json as T };
@@ -303,7 +335,8 @@ export async function readConversations(): Promise<{ threads: Thread[]; more: nu
   const live = active.slice(0, MAX_THREADS);
 
   // 2,000 comments a post; a post with more says so rather than being judged on part of it.
-  const lists = await pool(live, 6, (p) => all<MnComment>(`/posts/${p.id}/comments`, 20));
+  // Three at a time: Mighty counts calls per minute.
+  const lists = await pool(live, 3, (p) => all<MnComment>(`/posts/${p.id}/comments`, 20));
   // One post that cannot be read does not take the others with it; only when none can is it the tab's error.
   const firstError = lists.find((x): x is { error: string } => 'error' in x);
   if (firstError && lists.every((x) => 'error' in x)) return firstError;
@@ -324,6 +357,34 @@ export async function readConversations(): Promise<{ threads: Thread[]; more: nu
   const myName = me.data.user?.name?.trim() || nameOfMember(people.get(myId), myId);
 
   return { threads: threadsOf(myId, myName, live, comments, people, spaceNames, since, sub, unread), more: active.length - live.length };
+}
+
+/** How far ahead the Events tab looks. */
+export const EVENTS_AHEAD_DAYS = 183;
+
+/** QuinB Community › Events: every date of every event from now to EVENTS_AHEAD_DAYS ahead, soonest first. */
+export async function readEvents(): Promise<{ events: (Occurrence & { space: string | null; link: string | null })[]; until: string } | { error: string }> {
+  const [events, spaces] = await Promise.all([all<MnEvent>('/events', 20), all<MnSpace>('/spaces', 10)]);
+  if ('error' in events) return events;
+  // A list in a shape not read here says so, rather than showing "no events".
+  if (events.data.length && !events.data.some((e) => e && typeof e === 'object' && 'starts_at' in e)) {
+    return { error: `Mighty Networks sent the events without a start date this page knows (it sent ${Object.keys(events.data[0] ?? {}).join(', ') || 'nothing'}).` };
+  }
+  const now = Date.now();
+  const until = now + EVENTS_AHEAD_DAYS * day;
+  const names = new Map('data' in spaces ? spaces.data.map((s) => [s.id, s.name]) : []);
+  // The network's subdomain, for links that come as a path.
+  const sub = /^\d+$/.test(networkId()) ? null : networkId();
+  const seen = new Set<string>();
+  const out = events.data.flatMap((e) => occurrences(e, now, until)).filter((o) => {
+    // The list may hold a repeating event once per date already: one row per date.
+    const k = `${o.title}|${o.start}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).map((o) => ({ ...o, space: o.spaceId != null ? names.get(o.spaceId) ?? null : null, link: linkOf(o.permalink, sub) }));
+  out.sort((a, b) => ms(a.start) - ms(b.start));
+  return { events: out, until: new Date(until).toISOString() };
 }
 
 // ----------------------------------------------------------------- writing

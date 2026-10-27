@@ -20,7 +20,7 @@ const TABLES = {
     number: {}, ref: {}, enum: { style: ['plain', 'quinb', 'btb'] }, datetime: {},
   },
   mail_senders: {
-    text: { venture: 'venture', fromName: 'from_name', fromEmail: 'from_email', replyTo: 'reply_to', address: 'address' },
+    text: { venture: 'venture', fromName: 'from_name', fromEmail: 'from_email', replyTo: 'reply_to', address: 'address', photoUrl: 'photo_url' },
     number: {}, ref: {}, enum: {}, datetime: {},
   },
   mail_campaigns: {
@@ -48,6 +48,7 @@ function check(table: MailTable, field: string, v: string): string | null {
   if ((field === 'fromEmail' || field === 'replyTo') && v && !EMAIL_RE.test(v)) return 'That is not an email address.';
   if (field === 'fromEmail' && !v) return 'A from address is needed.';
   if (field === 'fromName' && !v) return 'A from name is needed.';
+  if (field === 'photoUrl' && v && !/^https:\/\/\S+$/.test(v)) return 'A picture link starts with https://';
   if (table === 'mail_campaigns' && field === 'kind' && !['broadcast', 'sequence'].includes(v)) return 'Broadcast or sequence.';
   return null;
 }

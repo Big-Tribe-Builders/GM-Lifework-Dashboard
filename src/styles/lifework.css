@@ -2561,3 +2561,29 @@ button.pwin__crumb:hover { background: var(--grey-100); color: var(--ink); }
 @keyframes tsearch-open { from { opacity: 0; transform: scaleX(.85); transform-origin: right; } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tsearch { animation: none; } }
 @media (max-width: 640px) { .tsearch { flex-basis: 150px; } }
+
+/* Mailing › Senders: the photo that signs a QuinB or BTB mail. */
+.senderphoto { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.senderphoto__img { flex: none; width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+.ph__card { margin: 4px 0 0; font-size: 12px; }
+
+/* QuinB Community › Conversations: when the list was read. */
+.convo__readat { margin-left: auto; font-size: 12px; white-space: nowrap; }
+
+/* QuinB Community › Events (Giulia, 27 Oct 2026): every planned date, by month. */
+.events { min-height: 100%; padding-bottom: 32px; background: var(--grid-canvas); }
+.events__empty { margin: 0; padding: 28px 16px; color: var(--muted); font-size: 13px; }
+.events__month { margin: 16px 12px 0; overflow: hidden; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); }
+.events__monthname { margin: 0; padding: 10px 16px; border-bottom: 1px solid var(--grid-line); font-size: 15px; font-weight: 650; }
+.events__monthname .muted { font-weight: 400; font-size: 13px; }
+.events__list { margin: 0; padding: 0; list-style: none; }
+.events__row { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 48px; padding: 8px 16px; border-top: 1px solid var(--grid-line); font-size: 13px; }
+.events__row:first-child { border-top: 0; }
+.events__when { white-space: nowrap; }
+.events__main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.events__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--ink); }
+.events__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+@media (max-width: 720px) {
+  .events__row { grid-template-columns: minmax(0, 1fr) auto; }
+  .events__when { grid-column: 1 / -1; }
+}

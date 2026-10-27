@@ -39,7 +39,7 @@ async function loadCampaign(db: Db, id: string): Promise<Loaded> {
     campaign.templateId ? db.from('mail_templates').select('*').eq('id', campaign.templateId).maybeSingle() : Promise.resolve({ data: null }),
     db.from('mail_sequence_steps').select('*').eq('campaign_id', id).order('step'),
   ]);
-  const sender: MailSender | null = s ? { id: s.id, venture: s.venture, fromName: s.from_name, fromEmail: s.from_email, replyTo: s.reply_to, address: s.address } : null;
+  const sender: MailSender | null = s ? { id: s.id, venture: s.venture, fromName: s.from_name, fromEmail: s.from_email, replyTo: s.reply_to, address: s.address, photoUrl: s.photo_url ?? null } : null;
   const template = t ? toTemplate(t) : null;
   const stepRows: MailStep[] = (steps ?? []).map((x) => ({ id: x.id, campaignId: x.campaign_id, step: x.step, dayOffset: x.day_offset, templateId: x.template_id }));
   return { campaign, sender, template, steps: stepRows };
@@ -176,7 +176,7 @@ export async function handOver(campaignId: string, origin: string, limit = 20): 
     const r = render({
       subject: t.subject, preheader: t.preheader, body: t.body, style: t.style,
       recipient: recipientOf(person.get(send.email.toLowerCase()), send), quote: campaign.quote,
-      sender: { fromName: sender.fromName, address: sender.address }, unsubscribeUrl: url,
+      sender: { fromName: sender.fromName, address: sender.address, photoUrl: sender.photoUrl }, unsubscribeUrl: url,
     });
     const future = send.scheduledFor && new Date(send.scheduledFor).getTime() > Date.now() + 60_000;
     const out = await sendEmail({
@@ -232,7 +232,7 @@ export async function sendTest(campaignId: string, to: string, origin: string, s
   const r = render({
     subject: template.subject, preheader: template.preheader, body: template.body, style: template.style,
     recipient: { email: to, firstName: me?.first_name ?? 'Giulia', lastName: me?.last_name, city: me?.city, personal: '(the personal line for this person goes here)' },
-    quote: campaign.quote, sender: { fromName: sender.fromName, address: sender.address }, unsubscribeUrl: url,
+    quote: campaign.quote, sender: { fromName: sender.fromName, address: sender.address, photoUrl: sender.photoUrl }, unsubscribeUrl: url,
   });
   const out = await sendEmail({
     from: `${sender.fromName} <${sender.fromEmail}>`, to, subject: `[Test] ${r.subject}`, html: r.html, text: r.text,

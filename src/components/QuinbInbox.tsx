@@ -31,7 +31,11 @@ const firstLine = (t: ThreadView) => t.title ?? (t.post.text.split('\n').find((l
  * On a narrow screen the halves take turns: the list, then the conversation
  * with a way back.
  */
-export function Conversations({ threads, more, days, max }: { threads: ThreadView[]; more: number; days: number; max: number }) {
+export function Conversations({ threads, more, days, max, readAt }: {
+  threads: ThreadView[]; more: number; days: number; max: number;
+  /** When QuinB was read ("14:05"): the list is kept a few minutes before it is read again. */
+  readAt?: string;
+}) {
   useSearchable();
   const { q } = useSearch();
   const words = useMemo(() => searchWords(q), [q]);
@@ -97,6 +101,7 @@ export function Conversations({ threads, more, days, max }: { threads: ThreadVie
               </button>
             ))}
           </div>
+          {readAt ? <span className="muted convo__readat">Read from QuinB at {readAt}</span> : null}
         </div>
         {more > 0 ? <p className="tabnote">The {max} posts with the latest activity are shown; {more} more had activity in these {days} days. Open QuinB for those.</p> : null}
         {shown.length ? (
