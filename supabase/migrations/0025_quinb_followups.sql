@@ -3,12 +3,16 @@
 --
 --   quinb_members          gains what "Refresh from QuinB" reads from Mighty,
 --                          plus "Leave out of follow-ups" and "Paused until".
---   quinb_followups        one row per follow-up she wrote.
+--   quinb_followups        one row per follow-up she wrote: the texts of private
+--                          messages and the start of members' answers. Row
+--                          level security with no policy for anon, no *_api
+--                          view; only the server reads it, with the service role
+--                          (the anon key is in the browser).
 --   quinb_refresh_runs     one row per "Refresh from QuinB".
---   mighty_connection      the private-message connection: secrets. Row level
---                          security with no policy for anon, no *_api view;
---                          only the server reads it, with the service role.
--- Nothing is renamed or dropped; quinb_members_api keeps every column it had.
+--   mighty_connection      the private-message connection: secrets. Treated the
+--                          same as quinb_followups.
+-- Nothing that existed before is renamed or dropped; quinb_members_api keeps
+-- every column it had.
 
 -- ------------------------------------------------------------- members
 alter table quinb_members add column if not exists mighty_id         text;
@@ -75,23 +79,26 @@ create table if not exists mighty_connection (
   refreshed_at       timestamptz,
   refreshing_until   timestamptz,
   last_error         text,
+  chats_read_at      timestamptz,
   updated_at         timestamptz not null default now()
 );
 
--- Row level security: the follow-up tables like the rest of the app (anon may
--- read and write); the connection with no policy for anon at all.
+-- Row level security: the refresh runs like the rest of the app (anon may read
+-- and write); the follow-ups and the connection with no policy for anon at all,
+-- and no grant to anon or signed-in users: only the service role reaches them.
+alter table quinb_refresh_runs enable row level security;
+drop policy if exists quinb_refresh_runs_anon on quinb_refresh_runs;
+create policy quinb_refresh_runs_anon on quinb_refresh_runs for all to anon using (true) with check (true);
 do $$
 declare t text;
 begin
-  foreach t in array array['quinb_followups','quinb_refresh_runs'] loop
+  foreach t in array array['quinb_followups','mighty_connection'] loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists %I on %I', t || '_anon', t);
-    execute format('create policy %I on %I for all to anon using (true) with check (true)', t || '_anon', t);
+    execute format('revoke all on %I from anon, authenticated', t);
+    execute format('grant select, insert, update, delete on %I to service_role', t);
   end loop;
 end $$;
-alter table mighty_connection enable row level security;
-drop policy if exists mighty_connection_anon on mighty_connection;
-revoke all on mighty_connection from anon;
 
 -- Views, camelCase for the app. quinb_members_api keeps its columns first.
 drop view if exists quinb_members_api;
@@ -107,15 +114,11 @@ select id, name, email, member_since as "memberSince", last_login as "lastLogin"
        dm_conversation_url as "dmConversationUrl"
 from quinb_members;
 
+-- No view of the follow-ups: the server reads the table itself.
 drop view if exists quinb_followups_api;
-create view quinb_followups_api with (security_invoker = true) as
-select id, member_id as "memberId", written_at as "writtenAt", via, message, note,
-       conversation_id as "conversationId", conversation_url as "conversationUrl",
-       answered_at as "answeredAt", answered_how as "answeredHow", answer_start as "answerStart"
-from quinb_followups;
 
 drop view if exists quinb_refresh_runs_api;
 create view quinb_refresh_runs_api with (security_invoker = true) as
 select id, ran_at as "ranAt", read, added, updated, gone, error, notes from quinb_refresh_runs;
 
-grant select on quinb_members_api, quinb_followups_api, quinb_refresh_runs_api to anon;
+grant select on quinb_members_api, quinb_refresh_runs_api to anon;

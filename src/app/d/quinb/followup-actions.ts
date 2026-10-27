@@ -5,6 +5,7 @@ import { getSupabase } from '@/lib/supabase';
 import { readRoster, type GqlMember } from '@/lib/mighty-graphql';
 import { readMemberLinks } from '@/lib/mighty';
 import { brusselsDay, addDay, todayBrussels, PAUSE_DAYS, DB_STEP } from '@/lib/followups';
+import { followupsDb, FOLLOWUPS_NEED_ADMIN } from '@/lib/followups-db';
 
 /**
  * Writes for QuinB Community › Follow-ups. Like the rest of the app these
@@ -127,10 +128,12 @@ export async function refreshFromQuinb(): Promise<RefreshResult> {
 
 // ------------------------------------------------------------ follow-ups
 
+// The follow-up log holds private messages: written with the service role only (lib/followups-db.ts).
+
 /** "I wrote in QuinB": a follow-up she wrote there herself, with the text from the box when there is one. */
 export async function logWrittenByHand(memberId: string, message: string, note: string): Promise<Result> {
-  const db = getSupabase();
-  if (!db) return { error: 'Supabase is not configured.' };
+  const db = followupsDb();
+  if (!db) return { error: FOLLOWUPS_NEED_ADMIN };
   const { error } = await db.from('quinb_followups').insert({ member_id: memberId, via: 'by_hand', message: message.trim() || null, note: note.trim() || null });
   if (error) return { error: dbError(error.message) };
   touched();
@@ -139,8 +142,8 @@ export async function logWrittenByHand(memberId: string, message: string, note: 
 
 /** "Answered", set by hand; again to take it back. */
 export async function setAnswered(followupId: string, answered: boolean): Promise<Result> {
-  const db = getSupabase();
-  if (!db) return { error: 'Supabase is not configured.' };
+  const db = followupsDb();
+  if (!db) return { error: FOLLOWUPS_NEED_ADMIN };
   const patch = answered ? { answered_at: new Date().toISOString(), answered_how: 'by_hand' } : { answered_at: null, answered_how: null, answer_start: null };
   const { error } = await db.from('quinb_followups').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', followupId);
   if (error) return { error: dbError(error.message) };

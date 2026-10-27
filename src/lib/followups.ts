@@ -191,3 +191,34 @@ export function planOf(members: QuinbMember[], followups: Followup[], today: str
 }
 
 export const percent = (part: number, whole: number) => (whole ? Math.round((part / whole) * 100) : null);
+
+// ------------------------------------------------------- private messages
+
+/** One message of a private conversation: hers or the member's. */
+export type ChatLine = { at: string; mine: boolean; text: string };
+/** How much of an answer is kept, to show in the history. */
+export const ANSWER_START = 140;
+
+/**
+ * What a conversation says: the last message from the member and from her,
+ * and for each follow-up still open, the first message from the member after
+ * it (which answers it).
+ */
+export function readThread(lines: ChatLine[], open: { id: string; writtenAt: string }[]): {
+  lastTheirs: string | null; lastMine: string | null; answers: { id: string; at: string; start: string }[];
+} {
+  const sorted = [...lines].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const theirs = sorted.filter((l) => !l.mine);
+  const mine = sorted.filter((l) => l.mine);
+  const answers = open.flatMap((f) => {
+    const a = theirs.find((l) => Date.parse(l.at) > Date.parse(f.writtenAt));
+    if (!a) return [];
+    const text = a.text.replace(/\s+/g, ' ').trim();
+    return [{ id: f.id, at: a.at, start: text.length > ANSWER_START ? `${text.slice(0, ANSWER_START - 1)}…` : text }];
+  });
+  return { lastTheirs: theirs.at(-1)?.at ?? null, lastMine: mine.at(-1)?.at ?? null, answers };
+}
+
+/** The later of two instants, either of which may be missing. */
+export const later = (a: string | null | undefined, b: string | null | undefined): string | null =>
+  !a ? b ?? null : !b ? a : Date.parse(a) >= Date.parse(b) ? a : b;

@@ -1,14 +1,19 @@
+import { cookies } from 'next/headers';
 import { getSupabase } from '@/lib/supabase';
 import type { QuinbMember } from '@/lib/book';
 import { DB_STEP, todayBrussels, type Followup } from '@/lib/followups';
 import { Followups, type LastRun } from '@/components/QuinbFollowups';
 import type { RefreshNote } from '@/app/d/quinb/followup-actions';
+import { chatStatus, SAID_COOKIE } from '@/lib/mighty-oauth';
+import { followupsDb, followupOf, FOLLOWUP_COLS, FOLLOWUPS_NEED_ADMIN } from '@/lib/followups-db';
 
 /**
- * QuinB Community › Follow-ups, on the server: the follow-up log and the
+ * QuinB Community › Follow-ups, on the server: the follow-up log (with the
+ * service role: it holds private messages, see lib/followups-db.ts) and the
  * last "Refresh from QuinB", read here so a missing table never reaches the
  * rest of the app. Before migration 0025 has run, the tab says so and the
- * other tabs work as before.
+ * other tabs work as before. Where private messages stand (connected as
+ * whom, what is missing) is read here too; the tokens never leave the server.
  */
 
 const missing = (msg: string) => /does not exist|could not find|schema cache/i.test(msg);
@@ -33,8 +38,10 @@ type RunRow = { ranAt: string; read: number; added: number; updated: number; gon
 export async function FollowupsTab({ members }: { members: QuinbMember[] }) {
   const db = getSupabase();
   if (!db) return <Notice title="Follow-ups cannot be read" text="Supabase is not configured." />;
+  const admin = followupsDb();
+  if (!admin) return <Notice title="Follow-ups cannot be read" text={FOLLOWUPS_NEED_ADMIN} />;
   const [fu, runs] = await Promise.all([
-    db.from('quinb_followups_api').select('*'),
+    admin.from('quinb_followups').select(FOLLOWUP_COLS),
     db.from('quinb_refresh_runs_api').select('*').order('ranAt', { ascending: false }).limit(1),
   ]);
   const err = fu.error?.message ?? runs.error?.message ?? null;
@@ -50,5 +57,8 @@ export async function FollowupsTab({ members }: { members: QuinbMember[] }) {
     error: r.error,
     notes: r.notes ?? [],
   } : null;
-  return <Followups members={members} followups={(fu.data ?? []) as Followup[]} today={todayBrussels()} lastRun={lastRun} />;
+  const [chat, jar] = await Promise.all([chatStatus(), cookies()]);
+  const followups: Followup[] = (fu.data ?? []).map(followupOf);
+  return <Followups members={members} followups={followups} today={todayBrussels()} lastRun={lastRun}
+    chat={chat} said={jar.get(SAID_COOKIE)?.value ?? null} />;
 }

@@ -8,6 +8,8 @@ import {
   type Followup, type Group, type Row,
 } from '@/lib/followups';
 import { refreshFromQuinb, logWrittenByHand, setAnswered, setPaused, setLeftOut, type RefreshNote } from '@/app/d/quinb/followup-actions';
+import { sendInQuinb, readChats, readMemberChat } from '@/app/d/quinb/chat-actions';
+import type { ChatStatus } from '@/lib/mighty-oauth';
 import { updateMember } from '@/app/d/quinb/actions';
 import { Face } from '@/components/QuinbInbox';
 import { Field } from '@/components/panel';
@@ -19,6 +21,9 @@ import { matches, searchWords, useSearch, useSearchable } from '@/lib/search';
  * the open member on the other, as in Conversations. The list is who to write
  * to (lib/followups.ts holds every rule and limit); the member half is what
  * to know before writing, the message, and what was written before.
+ * Sending and reading private messages need sign-in and the QuinB
+ * connection (`chat`); without them the tab says why and Copy and open QuinB
+ * does the job by hand.
  */
 
 export type LastRun = { at: string; summary: string | null; error: string | null; notes: RefreshNote[] };
@@ -37,8 +42,8 @@ function inside(day: string | null, today: string): string {
   return [y ? `${y} y` : '', m ? `${m} m` : ''].filter(Boolean).join(' ');
 }
 
-export function Followups({ members, followups, today, lastRun }: {
-  members: QuinbMember[]; followups: Followup[]; today: string; lastRun: LastRun | null;
+export function Followups({ members, followups, today, lastRun, chat, said }: {
+  members: QuinbMember[]; followups: Followup[]; today: string; lastRun: LastRun | null; chat: ChatStatus; said: string | null;
 }) {
   useSearchable();
   const { q } = useSearch();
@@ -92,7 +97,7 @@ export function Followups({ members, followups, today, lastRun }: {
 
   return (
     <div className="fu">
-      <RefreshBar lastRun={lastRun} />
+      <RefreshBar lastRun={lastRun} chat={chat} said={said} />
       <div className={`convo${chosen ? ' convo--open' : ''}`} ref={split}>
         <section className="convo__side" aria-label="Follow-ups">
           <dl className="fu__numbers">
@@ -144,7 +149,7 @@ export function Followups({ members, followups, today, lastRun }: {
           {open ? (
             <>
               <button type="button" className="convo__back" onClick={() => select(null)}>← All follow-ups</button>
-              <MemberCard key={open.member.id} row={open} followups={followups.filter((f) => f.memberId === open.member.id)} today={today} />
+              <MemberCard key={open.member.id} row={open} followups={followups.filter((f) => f.memberId === open.member.id)} today={today} chat={chat} />
             </>
           ) : null}
         </section>
@@ -153,22 +158,48 @@ export function Followups({ members, followups, today, lastRun }: {
   );
 }
 
-/** Refresh from QuinB, with when it last ran and what it found. */
-function RefreshBar({ lastRun }: { lastRun: LastRun | null }) {
+/**
+ * Refresh from QuinB, with when it last ran and what it found; then, when
+ * connected, her private messages. Beside it, the connection.
+ */
+function RefreshBar({ lastRun, chat, said }: { lastRun: LastRun | null; chat: ChatStatus; said: string | null }) {
   const [pending, start] = useTransition();
+  const [step, setStep] = useState<'members' | 'chats'>('members');
   const [result, setResult] = useState<{ error: string | null; summary?: string; notes?: RefreshNote[] } | null>(null);
-  const refresh = () => { setResult(null); start(async () => setResult(await refreshFromQuinb())); };
+  const [chats, setChats] = useState<{ error: string | null; summary?: string } | null>(null);
+  const refresh = () => {
+    setResult(null); setChats(null); setStep('members');
+    start(async () => {
+      setResult(await refreshFromQuinb());
+      if (!chat.ready) return;
+      setStep('chats');
+      setChats(await readChats());
+    });
+  };
   const notes = result?.notes ?? lastRun?.notes ?? [];
   const error = result ? result.error : lastRun?.error ?? null;
   return (
     <div className="convo__bar fu__top">
       <span className="muted fu__last">
-        {pending ? 'Reading QuinB…'
+        {pending ? (step === 'chats' ? 'Reading private messages…' : 'Reading QuinB…')
           : result?.summary ? `Refreshed just now · ${result.summary}`
           : lastRun ? `Last refreshed ${lastRun.at}${lastRun.summary ? ` · ${lastRun.summary}` : ''}` : 'Not refreshed from QuinB yet'}
       </span>
       <button type="button" className="btn btn--ghost btn--tiny" disabled={pending} onClick={refresh}>{pending ? 'Refreshing…' : 'Refresh from QuinB'}</button>
-      {error ? <p className="cell__error fu__error" role="alert">{error}</p> : null}
+      {chat.ready ? <span className="muted">Private messages: connected as {chat.connectedAs}</span>
+        : chat.canConnect ? <a className="btn btn--ghost btn--tiny" href="/api/mighty/connect">{chat.reconnect ? 'Connect again' : 'Connect'}</a>
+        : <button type="button" className="btn btn--ghost btn--tiny" disabled title="Locked: see below why">Connect</button>}
+      {said ? <p className="muted fu__error" role="status">{said}</p> : null}
+      {error ? <p className="field__error fu__error" role="alert">{error}</p> : null}
+      {chats?.summary ? <p className="muted fu__error" role="status">{chats.summary}</p> : null}
+      {chats?.error ? <p className="field__error fu__error" role="alert">{chats.error}</p> : null}
+      {chat.ready && chat.lastError && !chats ? <p className="muted fu__error">Last problem with private messages: {chat.lastError}</p> : null}
+      {!chat.ready && chat.blockers.length ? (
+        <details className="typebrief fu__notes">
+          <summary>Sending from here is locked: why, and what to set up</summary>
+          <ul>{chat.blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+        </details>
+      ) : null}
       {notes.length ? (
         <details className="typebrief fu__notes">
           <summary>{notes.length} {notes.length === 1 ? 'thing differs' : 'things differ'} between here and QuinB (yours were kept)</summary>
@@ -180,7 +211,7 @@ function RefreshBar({ lastRun }: { lastRun: LastRun | null }) {
 }
 
 /** The open member: who they are, the message, what was written before, notes, pause and leave out. */
-function MemberCard({ row, followups, today }: { row: Row; followups: Followup[]; today: string }) {
+function MemberCard({ row, followups, today, chat }: { row: Row; followups: Followup[]; today: string; chat: ChatStatus }) {
   const m = row.member;
   const [text, setText] = useState('');
   const [note, setNote] = useState('');
@@ -195,6 +226,16 @@ function MemberCard({ row, followups, today }: { row: Row; followups: Followup[]
   const since = m.memberSince;
   const paused = !!m.pausedUntil && m.pausedUntil >= today;
   const history = [...followups].sort((a, b) => Date.parse(b.writtenAt) - Date.parse(a.writtenAt));
+
+  // Opening a member who has not answered yet reads their conversation again
+  // (after a moment, so moving through the list with the keys reads nothing).
+  const waits = followups.some((f) => !f.answeredAt);
+  const [readError, setReadError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!chat.ready || !waits || !m.dmConversationId) return;
+    const t = setTimeout(() => { readMemberChat(m.id).then((r) => setReadError(r.error)).catch(() => {}); }, 700);
+    return () => clearTimeout(t);
+  }, [chat.ready, waits, m.id, m.dmConversationId]);
 
   const copyAndOpen = async () => {
     setError(null); setSaid(null);
@@ -233,7 +274,17 @@ function MemberCard({ row, followups, today }: { row: Row; followups: Followup[]
           <label className="pfield__label" htmlFor={`fu-msg-${m.id}`}>The message</label>
           <textarea id={`fu-msg-${m.id}`} rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Write to ${m.firstName ?? m.name.split(' ')[0]}…`} />
           <div className="convo__row">
-            <button type="button" className="btn btn--primary btn--tiny" disabled={!text.trim() || pending} onClick={copyAndOpen}>Copy and open QuinB</button>
+            {chat.ready ? (
+              <button type="button" className="btn btn--primary btn--tiny" disabled={!text.trim() || pending}
+                onClick={() => run(async () => { const r = await sendInQuinb(m.id, text); if (r.sent) setText(''); return r; }, 'Sent in QuinB. They wait for an answer for 7 days.')}>
+                Send in QuinB
+              </button>
+            ) : (
+              <>
+                <button type="button" className="btn btn--primary btn--tiny" disabled={!text.trim() || pending} onClick={copyAndOpen}>Copy and open QuinB</button>
+                <button type="button" className="btn btn--ghost btn--tiny" disabled title="Locked: the top of the tab says why">Send in QuinB</button>
+              </>
+            )}
           </div>
         </div>
         <div className="convo__row">
@@ -243,8 +294,9 @@ function MemberCard({ row, followups, today }: { row: Row; followups: Followup[]
             I wrote in QuinB
           </button>
         </div>
-        {error ? <p className="cell__error" role="alert">{error}</p> : null}
+        {error ? <p className="field__error" role="alert">{error}</p> : null}
         {said ? <p className="muted" role="status">{said}</p> : null}
+        {readError ? <p className="muted">Private messages could not be read: {readError}</p> : null}
       </div>
 
       <div className="convo__post">
