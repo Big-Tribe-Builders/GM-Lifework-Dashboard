@@ -5,6 +5,7 @@ import { DB_STEP, todayBrussels, type Followup } from '@/lib/followups';
 import { Followups, type LastRun } from '@/components/QuinbFollowups';
 import type { RefreshNote } from '@/app/d/quinb/followup-actions';
 import { chatStatus, SAID_COOKIE } from '@/lib/mighty-oauth';
+import { draftStatus } from '@/lib/draft';
 import { followupsDb, followupOf, FOLLOWUP_COLS, FOLLOWUPS_NEED_ADMIN } from '@/lib/followups-db';
 
 /**
@@ -12,8 +13,9 @@ import { followupsDb, followupOf, FOLLOWUP_COLS, FOLLOWUPS_NEED_ADMIN } from '@/
  * service role: it holds private messages, see lib/followups-db.ts) and the
  * last "Refresh from QuinB", read here so a missing table never reaches the
  * rest of the app. Before migration 0025 has run, the tab says so and the
- * other tabs work as before. Where private messages stand (connected as
- * whom, what is missing) is read here too; the tokens never leave the server.
+ * other tabs work as before. Where private messages and drafting stand
+ * (connected as whom, what is missing) is read here too; the tokens and keys
+ * never leave the server.
  */
 
 const missing = (msg: string) => /does not exist|could not find|schema cache/i.test(msg);
@@ -57,8 +59,8 @@ export async function FollowupsTab({ members }: { members: QuinbMember[] }) {
     error: r.error,
     notes: r.notes ?? [],
   } : null;
-  const [chat, jar] = await Promise.all([chatStatus(), cookies()]);
+  const [chat, draft, jar] = await Promise.all([chatStatus(), draftStatus(), cookies()]);
   const followups: Followup[] = (fu.data ?? []).map(followupOf);
   return <Followups members={members} followups={followups} today={todayBrussels()} lastRun={lastRun}
-    chat={chat} said={jar.get(SAID_COOKIE)?.value ?? null} />;
+    chat={chat} draft={draft} said={jar.get(SAID_COOKIE)?.value ?? null} />;
 }

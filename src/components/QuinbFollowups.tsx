@@ -9,6 +9,7 @@ import {
 } from '@/lib/followups';
 import { refreshFromQuinb, logWrittenByHand, setAnswered, setPaused, setLeftOut, type RefreshNote } from '@/app/d/quinb/followup-actions';
 import { sendInQuinb, readChats, readMemberChat } from '@/app/d/quinb/chat-actions';
+import { draftWithClaude } from '@/app/d/quinb/draft-actions';
 import type { ChatStatus } from '@/lib/mighty-oauth';
 import { updateMember } from '@/app/d/quinb/actions';
 import { Face } from '@/components/QuinbInbox';
@@ -22,8 +23,9 @@ import { matches, searchWords, useSearch, useSearchable } from '@/lib/search';
  * to (lib/followups.ts holds every rule and limit); the member half is what
  * to know before writing, the message, and what was written before.
  * Sending and reading private messages need sign-in and the QuinB
- * connection (`chat`); without them the tab says why and Copy and open QuinB
- * does the job by hand.
+ * connection (`chat`), drafting needs sign-in and the Anthropic key
+ * (`draft`); without them the tab says why, and Copy and open QuinB does the
+ * job by hand.
  */
 
 export type LastRun = { at: string; summary: string | null; error: string | null; notes: RefreshNote[] };
@@ -42,8 +44,10 @@ function inside(day: string | null, today: string): string {
   return [y ? `${y} y` : '', m ? `${m} m` : ''].filter(Boolean).join(' ');
 }
 
-export function Followups({ members, followups, today, lastRun, chat, said }: {
-  members: QuinbMember[]; followups: Followup[]; today: string; lastRun: LastRun | null; chat: ChatStatus; said: string | null;
+type DraftStatus = { ready: boolean; blockers: string[] };
+
+export function Followups({ members, followups, today, lastRun, chat, draft, said }: {
+  members: QuinbMember[]; followups: Followup[]; today: string; lastRun: LastRun | null; chat: ChatStatus; draft: DraftStatus; said: string | null;
 }) {
   useSearchable();
   const { q } = useSearch();
@@ -97,7 +101,7 @@ export function Followups({ members, followups, today, lastRun, chat, said }: {
 
   return (
     <div className="fu">
-      <RefreshBar lastRun={lastRun} chat={chat} said={said} />
+      <RefreshBar lastRun={lastRun} chat={chat} draft={draft} said={said} />
       <div className={`convo${chosen ? ' convo--open' : ''}`} ref={split}>
         <section className="convo__side" aria-label="Follow-ups">
           <dl className="fu__numbers">
@@ -149,7 +153,7 @@ export function Followups({ members, followups, today, lastRun, chat, said }: {
           {open ? (
             <>
               <button type="button" className="convo__back" onClick={() => select(null)}>← All follow-ups</button>
-              <MemberCard key={open.member.id} row={open} followups={followups.filter((f) => f.memberId === open.member.id)} today={today} chat={chat} />
+              <MemberCard key={open.member.id} row={open} followups={followups.filter((f) => f.memberId === open.member.id)} today={today} chat={chat} draftReady={draft.ready} />
             </>
           ) : null}
         </section>
@@ -162,7 +166,7 @@ export function Followups({ members, followups, today, lastRun, chat, said }: {
  * Refresh from QuinB, with when it last ran and what it found; then, when
  * connected, her private messages. Beside it, the connection.
  */
-function RefreshBar({ lastRun, chat, said }: { lastRun: LastRun | null; chat: ChatStatus; said: string | null }) {
+function RefreshBar({ lastRun, chat, draft, said }: { lastRun: LastRun | null; chat: ChatStatus; draft: DraftStatus; said: string | null }) {
   const [pending, start] = useTransition();
   const [step, setStep] = useState<'members' | 'chats'>('members');
   const [result, setResult] = useState<{ error: string | null; summary?: string; notes?: RefreshNote[] } | null>(null);
@@ -178,6 +182,8 @@ function RefreshBar({ lastRun, chat, said }: { lastRun: LastRun | null; chat: Ch
   };
   const notes = result?.notes ?? lastRun?.notes ?? [];
   const error = result ? result.error : lastRun?.error ?? null;
+  // What keeps sending and drafting locked, each reason once (sign-in locks both).
+  const locks = [...new Set([...(chat.ready ? [] : chat.blockers), ...(draft.ready ? [] : draft.blockers)])];
   return (
     <div className="convo__bar fu__top">
       <span className="muted fu__last">
@@ -194,10 +200,10 @@ function RefreshBar({ lastRun, chat, said }: { lastRun: LastRun | null; chat: Ch
       {chats?.summary ? <p className="muted fu__error" role="status">{chats.summary}</p> : null}
       {chats?.error ? <p className="field__error fu__error" role="alert">{chats.error}</p> : null}
       {chat.ready && chat.lastError && !chats ? <p className="muted fu__error">Last problem with private messages: {chat.lastError}</p> : null}
-      {!chat.ready && chat.blockers.length ? (
+      {locks.length ? (
         <details className="typebrief fu__notes">
-          <summary>Sending from here is locked: why, and what to set up</summary>
-          <ul>{chat.blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+          <summary>{!chat.ready && !draft.ready ? 'Sending and drafting' : !chat.ready ? 'Sending' : 'Drafting'} from here {!chat.ready && !draft.ready ? 'are' : 'is'} locked: why, and what to set up</summary>
+          <ul>{locks.map((b) => <li key={b}>{b}</li>)}</ul>
         </details>
       ) : null}
       {notes.length ? (
@@ -211,7 +217,7 @@ function RefreshBar({ lastRun, chat, said }: { lastRun: LastRun | null; chat: Ch
 }
 
 /** The open member: who they are, the message, what was written before, notes, pause and leave out. */
-function MemberCard({ row, followups, today, chat }: { row: Row; followups: Followup[]; today: string; chat: ChatStatus }) {
+function MemberCard({ row, followups, today, chat, draftReady }: { row: Row; followups: Followup[]; today: string; chat: ChatStatus; draftReady: boolean }) {
   const m = row.member;
   const [text, setText] = useState('');
   const [note, setNote] = useState('');
@@ -236,6 +242,19 @@ function MemberCard({ row, followups, today, chat }: { row: Row; followups: Foll
     const t = setTimeout(() => { readMemberChat(m.id).then((r) => setReadError(r.error)).catch(() => {}); }, 700);
     return () => clearTimeout(t);
   }, [chat.ready, waits, m.id, m.dmConversationId]);
+
+  // A draft lands in the box, to edit; it replaces what is there only when she says so.
+  const [drafting, startDraft] = useTransition();
+  const draft = () => {
+    if (text.trim() && !window.confirm('Replace the text in the box with a new draft?')) return;
+    setError(null); setSaid(null);
+    startDraft(async () => {
+      const r = await draftWithClaude(m.id);
+      if (r.error) { setError(r.error); return; }
+      setText(r.draft ?? '');
+      setSaid(`${r.note ? `${r.note} ` : ''}A draft from Claude: edit it before you send.`);
+    });
+  };
 
   const copyAndOpen = async () => {
     setError(null); setSaid(null);
@@ -274,6 +293,10 @@ function MemberCard({ row, followups, today, chat }: { row: Row; followups: Foll
           <label className="pfield__label" htmlFor={`fu-msg-${m.id}`}>The message</label>
           <textarea id={`fu-msg-${m.id}`} rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder={`Write to ${m.firstName ?? m.name.split(' ')[0]}…`} />
           <div className="convo__row">
+            <button type="button" className="btn btn--ghost btn--tiny" disabled={!draftReady || drafting || pending} onClick={draft}
+              title={draftReady ? undefined : 'Locked: the top of the tab says why'}>
+              {drafting ? 'Drafting…' : 'Draft with Claude'}
+            </button>
             {chat.ready ? (
               <button type="button" className="btn btn--primary btn--tiny" disabled={!text.trim() || pending}
                 onClick={() => run(async () => { const r = await sendInQuinb(m.id, text); if (r.sent) setText(''); return r; }, 'Sent in QuinB. They wait for an answer for 7 days.')}>

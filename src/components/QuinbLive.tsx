@@ -16,7 +16,8 @@ const kept = <T,>(read: () => Promise<T | { error: string }>, name: keyof typeof
   if (r && typeof r === 'object' && 'error' in r) throw new Error((r as { error: string }).error);
   return { ...(r as T), readAt: new Date().toISOString() };
 }, [QUINB_CACHE[name].tag, 'v1'], { revalidate: QUINB_CACHE[name].seconds, tags: [QUINB_CACHE[name].tag] });
-const keptConversations = kept(readConversations, 'conversations');
+/** Also read by Draft with Claude (her own comments, as examples of her voice). */
+export const keptConversations = kept(readConversations, 'conversations');
 const keptEvents = kept(readEvents, 'events');
 const failure = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong while reading QuinB.');
 const clock = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' });
